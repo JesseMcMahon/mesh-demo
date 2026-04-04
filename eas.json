@@ -1,0 +1,43 @@
+{
+  "cli": {
+    "version": ">= 3.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "investor-demo": {
+      "distribution": "internal",
+      "channel": "investor-demo",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_APP_MODE": "investor_demo",
+        "EXPO_PUBLIC_DEMO_BUNDLE_ID": "com.hfs.huddle.demo",
+        "EXPO_PUBLIC_DEMO_ANDROID_PACKAGE": "com.hfs.huddle.demo"
+      }
+    },
+    "preview": {
+      "distribution": "internal"
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "investor-demo": {
+      "ios": {
+        "appleTeamId": "HQVP8JQ456"
+      }
+    },
+    "production": {
+      "ios": {
+        "appleTeamId": "HQVP8JQ456"
+      }
+    }
+  }
+}

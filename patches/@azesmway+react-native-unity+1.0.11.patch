@@ -1,0 +1,175 @@
+diff --git a/node_modules/@azesmway/react-native-unity/ios/RNUnityView.h b/node_modules/@azesmway/react-native-unity/ios/RNUnityView.h
+index 23824e4..622adb2 100644
+--- a/node_modules/@azesmway/react-native-unity/ios/RNUnityView.h
++++ b/node_modules/@azesmway/react-native-unity/ios/RNUnityView.h
+@@ -31,7 +31,7 @@ NS_ASSUME_NONNULL_BEGIN
+ @property (nonatomic, copy) RCTBubblingEventBlock _Nullable onPlayerQuit;
+ 
+ - (void)unloadUnity;
+-- (void)pauseUnity:(BOOL * _Nonnull)pause;
++- (void)pauseUnity:(BOOL)pause;
+ - (void)postMessage:(NSString* _Nonnull )gameObject methodName:(NSString* _Nonnull)methodName message:(NSString* _Nonnull) message;
+ 
+ @end
+@@ -54,7 +54,7 @@ NS_ASSUME_NONNULL_END
+ @property (nonatomic, copy) RCTBubblingEventBlock _Nullable onPlayerQuit;
+ 
+ - (void)unloadUnity;
+-- (void)pauseUnity:(BOOL * _Nonnull)pause;
++- (void)pauseUnity:(BOOL)pause;
+ - (void)postMessage:(NSString* _Nonnull )gameObject methodName:(NSString* _Nonnull)methodName message:(NSString* _Nonnull) message;
+ 
+ 
+diff --git a/node_modules/@azesmway/react-native-unity/ios/RNUnityView.mm b/node_modules/@azesmway/react-native-unity/ios/RNUnityView.mm
+index a4caa74..e38e1c8 100644
+--- a/node_modules/@azesmway/react-native-unity/ios/RNUnityView.mm
++++ b/node_modules/@azesmway/react-native-unity/ios/RNUnityView.mm
+@@ -38,6 +38,12 @@ @implementation RNUnityView
+ 
+ static RNUnityView *sharedInstance;
+ 
++- (void)emitNativeStatus:(NSString *)message {
++    if (self.onUnityMessage) {
++        self.onUnityMessage(@{ @"message": message ?: @"NATIVE_STATUS_UNKNOWN" });
++    }
++}
++
+ - (bool)unityIsInitialized {
+     return [self ufw] && [[self ufw] appController];
+ }
+@@ -64,35 +70,51 @@ - (void)initUnityModule {
+         [[self ufw] appController].quitHandler = ^(){ NSLog(@"AppController.quitHandler called"); };
+         [self.ufw.appController.rootView removeFromSuperview];
+ 
+-        if (@available(iOS 13.0, *)) {
+-            [[[[self ufw] appController] window] setWindowScene: nil];
+-        } else {
+-            [[[[self ufw] appController] window] setScreen: nil];
++        UIWindow *unityWindow = [[self ufw] appController].window;
++        UIWindow *mainWindow = [[[UIApplication sharedApplication] delegate] window];
++
++        // Keep Unity rendering as an embedded subview, not as the active app window.
++        if (unityWindow != nil && unityWindow != mainWindow) {
++            unityWindow.userInteractionEnabled = NO;
++            unityWindow.hidden = YES;
+         }
+ 
+-        [[[[self ufw] appController] window] addSubview: self.ufw.appController.rootView];
+-        [[[[self ufw] appController] window] makeKeyAndVisible];
+-        [[[[[[self ufw] appController] window] rootViewController] view] setNeedsLayout];
++        self.ufw.appController.rootView.frame = self.bounds;
++        self.ufw.appController.rootView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
++        self.clipsToBounds = YES;
++        [self addSubview:self.ufw.appController.rootView];
++
++        if (mainWindow != nil) {
++            [mainWindow makeKeyAndVisible];
++        }
+ 
+         [NSClassFromString(@"FrameworkLibAPI") registerAPIforNativeCalls:self];
++        [self emitNativeStatus:@"NATIVE_STATUS:Unity initialized"];
+     }
+     @catch (NSException *e) {
+         NSLog(@"%@",e);
++        [self emitNativeStatus:[NSString stringWithFormat:@"NATIVE_STATUS:Init exception: %@", e.reason ?: @"unknown"]];
+     }
+ }
+ 
+ - (void)layoutSubviews {
+    [super layoutSubviews];
+ 
++   if (![self unityIsInitialized] && self.bounds.size.width > 0 && self.bounds.size.height > 0) {
++      [self initUnityModule];
++   }
++
+    if([self unityIsInitialized]) {
+       self.ufw.appController.rootView.frame = self.bounds;
+-      [self addSubview:self.ufw.appController.rootView];
++      if (self.ufw.appController.rootView.superview != self) {
++        [self addSubview:self.ufw.appController.rootView];
++      }
+    }
+ }
+ 
+-- (void)pauseUnity:(BOOL * _Nonnull)pause {
++- (void)pauseUnity:(BOOL)pause {
+     if([self unityIsInitialized]) {
+-        [[self ufw] pause:pause];
++        [[self ufw] pause: pause];
+     }
+ }
+ 
+@@ -187,6 +209,7 @@ - (instancetype)initWithFrame:(CGRect)frame {
+         gridViewEventEmitter->onUnityMessage(event);
+       }
+     };
++
+   }
+ 
+   return self;
+@@ -197,10 +220,6 @@ - (void)updateEventEmitter:(EventEmitter::Shared const &)eventEmitter {
+ }
+ 
+ - (void)updateProps:(Props::Shared const &)props oldProps:(Props::Shared const &)oldProps {
+-    if (![self unityIsInitialized]) {
+-      [self initUnityModule];
+-    }
+-
+     [super updateProps:props oldProps:oldProps];
+ }
+ 
+@@ -217,10 +236,6 @@ - (void)handleCommand:(nonnull const NSString *)commandName args:(nonnull const
+ -(id)initWithFrame:(CGRect)frame {
+     self = [super initWithFrame:frame];
+ 
+-    if (self) {
+-        [self initUnityModule];
+-    }
+-
+     return self;
+ }
+ 
+diff --git a/node_modules/@azesmway/react-native-unity/ios/RNUnityViewManager.mm b/node_modules/@azesmway/react-native-unity/ios/RNUnityViewManager.mm
+index f9b79bd..39fe74c 100644
+--- a/node_modules/@azesmway/react-native-unity/ios/RNUnityViewManager.mm
++++ b/node_modules/@azesmway/react-native-unity/ios/RNUnityViewManager.mm
+@@ -41,18 +41,18 @@ + (BOOL)requiresMainQueueSetup {
+             RCTLogError(@"Cannot find NativeView with tag #%@", reactTag);
+             return;
+         }
+-        [unity postMessage:(NSString *)gameObject methodName:(NSString *)methodName message:(NSString *)message];
++        [view postMessage:(NSString *)gameObject methodName:(NSString *)methodName message:(NSString *)message];
+     }];
+ }
+ 
+-RCT_EXPORT_METHOD(pauseUnity:(nonnull NSNumber*) reactTag pause:(BOOL * _Nonnull)pause) {
++RCT_EXPORT_METHOD(pauseUnity:(nonnull NSNumber*) reactTag pause:(BOOL)pause) {
+    [self.bridge.uiManager addUIBlock:^(RCTUIManager *uiManager, NSDictionary<NSNumber *,UIView *> *viewRegistry) {
+        RNUnityView *view = (RNUnityView*) viewRegistry[reactTag];
+        if (!view || ![view isKindOfClass:[RNUnityView class]]) {
+            RCTLogError(@"Cannot find NativeView with tag #%@", reactTag);
+            return;
+        }
+-       [unity pauseUnity:(BOOL * _Nonnull)pause];
++       [view pauseUnity:pause];
+    }];
+ }
+ 
+@@ -63,7 +63,7 @@ + (BOOL)requiresMainQueueSetup {
+            RCTLogError(@"Cannot find NativeView with tag #%@", reactTag);
+            return;
+        }
+-       [unity pauseUnity:(BOOL * _Nonnull)false];
++       [view pauseUnity:NO];
+    }];
+ }
+ 
+@@ -74,7 +74,7 @@ + (BOOL)requiresMainQueueSetup {
+            RCTLogError(@"Cannot find NativeView with tag #%@", reactTag);
+            return;
+        }
+-       [unity unloadUnity];
++       [view unloadUnity];
+    }];
+ }
+ 

@@ -56,6 +56,7 @@ export default function CribScreen() {
     <DemoModuleScaffold
       title="Crib Showcase"
       subtitle="A personal NFL 2K-style legacy room where status is visible, social, and collectible."
+      moduleIntroKey="crib"
       footer={<FeatureFooter featureId="crib" />}
     >
       <LinearGradient

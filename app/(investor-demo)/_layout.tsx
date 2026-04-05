@@ -11,6 +11,7 @@ export default function InvestorDemoLayout() {
       <Stack.Screen name="home" />
       <Stack.Screen name="roadmap" />
       <Stack.Screen name="lineup-demo" />
+      <Stack.Screen name="live-economy" />
       <Stack.Screen name="locker-room" />
       <Stack.Screen name="my-locker" />
       <Stack.Screen name="crib" />

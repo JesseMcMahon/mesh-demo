@@ -104,6 +104,7 @@ export default function GemsXpScreen() {
     <DemoModuleScaffold
       title="Gems + XP Ledger"
       subtitle="Season progression resets. Prestige and gems carry across every sport and show."
+      moduleIntroKey="gems_xp"
       footer={<FeatureFooter featureId="gems" />}
     >
       <View

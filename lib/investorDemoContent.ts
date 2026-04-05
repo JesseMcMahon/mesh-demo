@@ -2,6 +2,7 @@ export type DemoFeatureId =
   | "lineup"
   | "locker"
   | "crib"
+  | "economy"
   | "battlepass"
   | "gems"
   | "taunts";
@@ -41,6 +42,15 @@ export const DEMO_FEATURES: DemoFeature[] = [
     gemReward: 22,
   },
   {
+    id: "economy",
+    title: "Live Economy Engine",
+    subtitle:
+      "Live moments, sponsor rewards, and squad progression in one reactive loop.",
+    route: "/(investor-demo)/live-economy",
+    xpReward: 130,
+    gemReward: 28,
+  },
+  {
     id: "battlepass",
     title: "Battle Pass",
     subtitle: "Scrollable seasonal track for cosmetics, themes, and packs.",
@@ -67,10 +77,10 @@ export const DEMO_FEATURES: DemoFeature[] = [
 ];
 
 export const TAUNT_TRIGGERS = [
-  "You gained 20+ points in one game window",
-  "Your player hit a 50+ yard touchdown",
-  "Your kicker drilled a 50+ yard field goal",
-  "You flipped projected win odds by 15%+",
+  "Saquon Barkley just scored his second touchdown!",
+  "Harrison Butker just made a 60-yard field goal!",
+  "Puka Nacua just scored a 50-yard touchdown!",
+  "Your squad just crossed 150 points!",
 ];
 
 export function getFeatureById(featureId: DemoFeatureId) {

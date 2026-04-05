@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { DEMO_FEATURES, DemoFeatureId } from "@/lib/investorDemoContent";
+import { DemoModuleIntroKey, MODULE_INTRO_KEYS } from "@/lib/demoModuleIntro";
 import {
   DemoFootballId,
   DemoProgressStep,
@@ -24,6 +25,22 @@ interface DemoState {
   formatContribution: Record<DemoSeasonFormat, number>;
   sessionActionCount: number;
   sessionXpEarned: number;
+  sessionGemsEarned: number;
+  sessionGemsSpent: number;
+  sponsorFunnel: {
+    views: number;
+    attempts: number;
+    completions: number;
+    redemptions: number;
+  };
+  liveMomentsTriggered: number;
+  squadObjective: {
+    myContribution: number;
+    totalContribution: number;
+    target: number;
+    chestsClaimed: number;
+  };
+  presenterOverlayEnabled: boolean;
   xp: number;
   gems: number;
   level: number;
@@ -42,6 +59,7 @@ interface DemoState {
   hasSeenBattlePassLevel5Reveal: boolean;
   hasSeenBattlePassLevel10Reveal: boolean;
   hasSeenCinematicIntro: boolean;
+  seenModuleIntros: Record<DemoModuleIntroKey, boolean>;
 }
 
 interface InvestorDemoContextType {
@@ -55,6 +73,19 @@ interface InvestorDemoContextType {
     format?: DemoSeasonFormat
   ) => void;
   addLifetimeProgress: (xp: number, gems: number, format?: DemoSeasonFormat) => void;
+  recordEconomySpend: (gems: number) => void;
+  recordSponsorEvent: (
+    event: "view" | "attempt" | "completion" | "redemption"
+  ) => void;
+  addSquadContribution: (myContribution: number, totalContribution: number) => void;
+  recordLiveMoment: (options?: {
+    xp?: number;
+    gems?: number;
+    sponsorEvent?: "view" | "attempt" | "completion";
+    myContribution?: number;
+    totalContribution?: number;
+  }) => void;
+  togglePresenterOverlay: (force?: boolean) => void;
   simulateSeasonRollover: () => void;
   setSeasonFormat: (format: DemoSeasonFormat) => void;
   triggerTaunt: () => void;
@@ -67,6 +98,8 @@ interface InvestorDemoContextType {
   markHomeLevel5PromptSeen: () => void;
   markRevealSeen: (stage: Exclude<DemoRevealStage, null>) => void;
   markCinematicIntroSeen: () => void;
+  markModuleIntroSeen: (moduleKey: DemoModuleIntroKey) => void;
+  hasSeenModuleIntro: (moduleKey: DemoModuleIntroKey) => boolean;
   equipSuit: (suit: DemoSuitId) => void;
   equipFootball: (football: DemoFootballId) => void;
   hasUnlockedItem: (itemId: DemoUnlockItemId) => boolean;
@@ -92,6 +125,22 @@ function addFormatContribution(
   };
 }
 
+function updateSponsorFunnel(
+  current: DemoState["sponsorFunnel"],
+  event: "view" | "attempt" | "completion" | "redemption"
+): DemoState["sponsorFunnel"] {
+  if (event === "view") {
+    return { ...current, views: current.views + 1 };
+  }
+  if (event === "attempt") {
+    return { ...current, attempts: current.attempts + 1 };
+  }
+  if (event === "completion") {
+    return { ...current, completions: current.completions + 1 };
+  }
+  return { ...current, redemptions: current.redemptions + 1 };
+}
+
 const initialState: DemoState = {
   seasonXp: 0,
   seasonLevel: 1,
@@ -107,6 +156,22 @@ const initialState: DemoState = {
   },
   sessionActionCount: 0,
   sessionXpEarned: 0,
+  sessionGemsEarned: 0,
+  sessionGemsSpent: 0,
+  sponsorFunnel: {
+    views: 0,
+    attempts: 0,
+    completions: 0,
+    redemptions: 0,
+  },
+  liveMomentsTriggered: 0,
+  squadObjective: {
+    myContribution: 0,
+    totalContribution: 0,
+    target: 500,
+    chestsClaimed: 0,
+  },
+  presenterOverlayEnabled: false,
   xp: 0,
   gems: 640,
   level: 1,
@@ -125,6 +190,13 @@ const initialState: DemoState = {
   hasSeenBattlePassLevel5Reveal: false,
   hasSeenBattlePassLevel10Reveal: false,
   hasSeenCinematicIntro: false,
+  seenModuleIntros: MODULE_INTRO_KEYS.reduce(
+    (accumulator, key) => {
+      accumulator[key] = false;
+      return accumulator;
+    },
+    {} as Record<DemoModuleIntroKey, boolean>
+  ),
 };
 
 const InvestorDemoContext = createContext<InvestorDemoContextType | undefined>(undefined);
@@ -171,6 +243,7 @@ export function InvestorDemoProvider({ children }: { children: React.ReactNode }
           ),
           sessionActionCount: previous.sessionActionCount + 1,
           sessionXpEarned: previous.sessionXpEarned + xpGain,
+          sessionGemsEarned: previous.sessionGemsEarned + gemGain,
           xp: nextSeasonXp,
           level: nextSeasonLevel,
           gems: nextLifetimeGems,
@@ -198,6 +271,9 @@ export function InvestorDemoProvider({ children }: { children: React.ReactNode }
             format,
             Math.max(1, Math.round(xpGain / 10))
           ),
+          sessionActionCount: previous.sessionActionCount + 1,
+          sessionXpEarned: previous.sessionXpEarned + xpGain,
+          sessionGemsEarned: previous.sessionGemsEarned + gemGain,
           gems: nextLifetimeGems,
         };
       });
@@ -208,6 +284,121 @@ export function InvestorDemoProvider({ children }: { children: React.ReactNode }
   const addXpAndGems = useCallback((xp: number, gems: number) => {
     addSeasonProgress(xp, gems);
   }, [addSeasonProgress]);
+
+  const recordEconomySpend = useCallback((gems: number) => {
+    setState((previous) => {
+      const spend = Math.max(0, gems);
+      if (spend <= 0) return previous;
+      const nextLifetimeGems = Math.max(0, previous.lifetimeGems - spend);
+      return {
+        ...previous,
+        lifetimeGems: nextLifetimeGems,
+        gems: nextLifetimeGems,
+        sessionGemsSpent: previous.sessionGemsSpent + spend,
+      };
+    });
+  }, []);
+
+  const recordSponsorEvent = useCallback(
+    (event: "view" | "attempt" | "completion" | "redemption") => {
+      setState((previous) => ({
+        ...previous,
+        sponsorFunnel: updateSponsorFunnel(previous.sponsorFunnel, event),
+      }));
+    },
+    []
+  );
+
+  const addSquadContribution = useCallback(
+    (myContribution: number, totalContribution: number) => {
+      setState((previous) => {
+        const myDelta = Math.max(0, myContribution);
+        const totalDelta = Math.max(myDelta, totalContribution);
+        const nextMy = previous.squadObjective.myContribution + myDelta;
+        const nextTotal = previous.squadObjective.totalContribution + totalDelta;
+        const target = previous.squadObjective.target;
+        const reachedBefore = previous.squadObjective.totalContribution >= target;
+        const reachedNow = nextTotal >= target;
+
+        return {
+          ...previous,
+          squadObjective: {
+            ...previous.squadObjective,
+            myContribution: nextMy,
+            totalContribution: nextTotal,
+            chestsClaimed:
+              !reachedBefore && reachedNow
+                ? previous.squadObjective.chestsClaimed + 1
+                : previous.squadObjective.chestsClaimed,
+          },
+        };
+      });
+    },
+    []
+  );
+
+  const recordLiveMoment = useCallback(
+    (options?: {
+      xp?: number;
+      gems?: number;
+      sponsorEvent?: "view" | "attempt" | "completion";
+      myContribution?: number;
+      totalContribution?: number;
+    }) => {
+      const xpGain = Math.max(0, options?.xp ?? 24);
+      const gemGain = Math.max(0, options?.gems ?? 6);
+      setState((previous) => {
+        const nextSeasonXp = previous.seasonXp + xpGain;
+        const nextSeasonLevel = getLevelFromXp(nextSeasonXp, SEASON_XP_PER_LEVEL);
+        const nextLifetimeXp = previous.lifetimeXp + xpGain;
+        const nextLifetimeGems = previous.lifetimeGems + gemGain;
+        const myDelta = Math.max(0, options?.myContribution ?? 28);
+        const totalDelta = Math.max(myDelta, options?.totalContribution ?? 72);
+        const nextMy = previous.squadObjective.myContribution + myDelta;
+        const nextTotal = previous.squadObjective.totalContribution + totalDelta;
+        const target = previous.squadObjective.target;
+        const reachedBefore = previous.squadObjective.totalContribution >= target;
+        const reachedNow = nextTotal >= target;
+        const sponsorEvent = options?.sponsorEvent ?? "attempt";
+
+        return {
+          ...previous,
+          seasonXp: nextSeasonXp,
+          seasonLevel: nextSeasonLevel,
+          lifetimeXp: nextLifetimeXp,
+          lifetimePrestige: getPrestigeFromXp(nextLifetimeXp),
+          lifetimeGems: nextLifetimeGems,
+          gems: nextLifetimeGems,
+          xp: nextSeasonXp,
+          level: nextSeasonLevel,
+          sessionActionCount: previous.sessionActionCount + 1,
+          sessionXpEarned: previous.sessionXpEarned + xpGain,
+          sessionGemsEarned: previous.sessionGemsEarned + gemGain,
+          liveMomentsTriggered: previous.liveMomentsTriggered + 1,
+          tauntsSent: previous.tauntsSent + 1,
+          sponsorFunnel: updateSponsorFunnel(previous.sponsorFunnel, sponsorEvent),
+          squadObjective: {
+            ...previous.squadObjective,
+            myContribution: nextMy,
+            totalContribution: nextTotal,
+            chestsClaimed:
+              !reachedBefore && reachedNow
+                ? previous.squadObjective.chestsClaimed + 1
+                : previous.squadObjective.chestsClaimed,
+          },
+        };
+      });
+    },
+    []
+  );
+
+  const togglePresenterOverlay = useCallback((force?: boolean) => {
+    setState((previous) => ({
+      ...previous,
+      presenterOverlayEnabled:
+        typeof force === "boolean" ? force : !previous.presenterOverlayEnabled,
+    }));
+  }, []);
 
   const simulateSeasonRollover = useCallback(() => {
     setState((previous) => {
@@ -225,6 +416,20 @@ export function InvestorDemoProvider({ children }: { children: React.ReactNode }
         battlePassLevel: 1,
         sessionActionCount: 0,
         sessionXpEarned: 0,
+        sessionGemsEarned: 0,
+        sessionGemsSpent: 0,
+        sponsorFunnel: {
+          views: 0,
+          attempts: 0,
+          completions: 0,
+          redemptions: 0,
+        },
+        liveMomentsTriggered: 0,
+        squadObjective: {
+          ...previous.squadObjective,
+          myContribution: 0,
+          totalContribution: 0,
+        },
         xp: 0,
         level: 1,
       };
@@ -244,6 +449,7 @@ export function InvestorDemoProvider({ children }: { children: React.ReactNode }
         ...previous,
         lifetimeGems: previous.lifetimeGems + feature.gemReward,
         gems: previous.lifetimeGems + feature.gemReward,
+        sessionGemsEarned: previous.sessionGemsEarned + feature.gemReward,
         completedFeatures: [...previous.completedFeatures, featureId],
       };
     });
@@ -255,6 +461,8 @@ export function InvestorDemoProvider({ children }: { children: React.ReactNode }
       tauntsSent: previous.tauntsSent + 1,
       lifetimeGems: previous.lifetimeGems + 12,
       gems: previous.lifetimeGems + 12,
+      sessionActionCount: previous.sessionActionCount + 1,
+      sessionGemsEarned: previous.sessionGemsEarned + 12,
     }));
   }, []);
 
@@ -385,6 +593,27 @@ export function InvestorDemoProvider({ children }: { children: React.ReactNode }
     });
   }, []);
 
+  const markModuleIntroSeen = useCallback((moduleKey: DemoModuleIntroKey) => {
+    setState((previous) => {
+      if (previous.seenModuleIntros[moduleKey]) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        seenModuleIntros: {
+          ...previous.seenModuleIntros,
+          [moduleKey]: true,
+        },
+      };
+    });
+  }, []);
+
+  const hasSeenModuleIntro = useCallback(
+    (moduleKey: DemoModuleIntroKey) => !!state.seenModuleIntros[moduleKey],
+    [state.seenModuleIntros]
+  );
+
   const hasUnlockedItem = useCallback(
     (itemId: DemoUnlockItemId) => state.unlockedItems.includes(itemId),
     [state.unlockedItems]
@@ -446,6 +675,7 @@ export function InvestorDemoProvider({ children }: { children: React.ReactNode }
     setState((previous) => ({
       ...initialState,
       hasSeenCinematicIntro: previous.hasSeenCinematicIntro,
+      presenterOverlayEnabled: previous.presenterOverlayEnabled,
     }));
   }, []);
 
@@ -468,6 +698,11 @@ export function InvestorDemoProvider({ children }: { children: React.ReactNode }
         addXpAndGems,
         addSeasonProgress,
         addLifetimeProgress,
+        recordEconomySpend,
+        recordSponsorEvent,
+        addSquadContribution,
+        recordLiveMoment,
+        togglePresenterOverlay,
         simulateSeasonRollover,
         setSeasonFormat,
         triggerTaunt,
@@ -480,6 +715,8 @@ export function InvestorDemoProvider({ children }: { children: React.ReactNode }
         markHomeLevel5PromptSeen,
         markRevealSeen,
         markCinematicIntroSeen,
+        markModuleIntroSeen,
+        hasSeenModuleIntro,
         equipSuit,
         equipFootball,
         hasUnlockedItem,

@@ -1,4 +1,5 @@
 import { UnlockRevealModal } from "@/components/demo/UnlockRevealModal";
+import { InvestorOverlay } from "@/components/demo/InvestorOverlay";
 import { useInvestorDemo } from "@/contexts/investor-demo";
 import { getUnlockItemsForLevel } from "@/lib/demoBattlePass";
 import { useDemoTheme } from "@/lib/demoTheme";
@@ -28,6 +29,7 @@ const FEATURE_ICON: Record<DemoFeatureId, keyof typeof MaterialIcons.glyphMap> =
     lineup: "tune",
     locker: "emoji-events",
     crib: "home",
+    economy: "hub",
     battlepass: "view-carousel",
     gems: "diamond",
     taunts: "campaign",
@@ -38,6 +40,7 @@ function getFeatureTone(id: DemoFeatureId) {
     lineup: "#64D0C1",
     locker: "#E4C16E",
     crib: "#7BC6FF",
+    economy: "#6FD1FF",
     battlepass: "#8F8AFF",
     gems: "#B889FF",
     taunts: "#FF8F74",
@@ -85,6 +88,7 @@ export default function InvestorDemoHomeScreen() {
     acknowledgeHelperPrompt,
     markHomeLevel5PromptSeen,
     markCinematicIntroSeen,
+    togglePresenterOverlay,
   } = useInvestorDemo();
   const theme = useDemoTheme();
 
@@ -132,6 +136,14 @@ export default function InvestorDemoHomeScreen() {
       : state.battlePassLevel < 10
         ? "Next unlock: Level 10"
         : "All milestone unlocks claimed";
+  const netFlowThisSession = state.sessionGemsEarned - state.sessionGemsSpent;
+  const sinkUsageRate =
+    state.sessionGemsEarned > 0
+      ? Math.min(
+          100,
+          Math.round((state.sessionGemsSpent / state.sessionGemsEarned) * 100),
+        )
+      : 0;
 
   const showIntroModal = !state.hasSeenCinematicIntro;
   const showHelperModal =
@@ -269,14 +281,24 @@ export default function InvestorDemoHomeScreen() {
                 <View
                   style={[styles.liveDot, { backgroundColor: theme.primary }]}
                 />
-                <Text
-                  style={[
-                    styles.kicker,
-                    { color: theme.kicker, fontFamily: theme.labelFont },
-                  ]}
+                <TouchableOpacity
+                  activeOpacity={0.86}
+                  onLongPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(
+                      () => {},
+                    );
+                    togglePresenterOverlay();
+                  }}
                 >
-                  Mesh Demo Command Center
-                </Text>
+                  <Text
+                    style={[
+                      styles.kicker,
+                      { color: theme.kicker, fontFamily: theme.labelFont },
+                    ]}
+                  >
+                    Mesh Demo Command Center
+                  </Text>
+                </TouchableOpacity>
               </View>
               <Text
                 style={[
@@ -566,6 +588,188 @@ export default function InvestorDemoHomeScreen() {
               </Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        <View
+          style={[
+            styles.commandCenterCard,
+            {
+              borderColor: `${theme.primary}44`,
+              backgroundColor: theme.surfaceElevated,
+            },
+          ]}
+        >
+          <View style={styles.commandCenterHeader}>
+            <Text
+              style={[
+                styles.commandCenterTitle,
+                { color: theme.textPrimary, fontFamily: theme.displayFont },
+              ]}
+            >
+              Economy Command Center
+            </Text>
+            <View
+              style={[
+                styles.commandCenterNetPill,
+                {
+                  borderColor:
+                    netFlowThisSession >= 0 ? "#4DD9A6AA" : "#FF9D7CAA",
+                  backgroundColor:
+                    netFlowThisSession >= 0
+                      ? "rgba(77, 217, 166, 0.15)"
+                      : "rgba(255, 157, 124, 0.15)",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.commandCenterNetText,
+                  {
+                    color: netFlowThisSession >= 0 ? "#75E7BA" : "#FFB49B",
+                    fontFamily: theme.labelFont,
+                  },
+                ]}
+              >
+                Net {netFlowThisSession >= 0 ? "+" : ""}
+                {netFlowThisSession} Gems
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.ledgerSplitRow}>
+            <View
+              style={[
+                styles.ledgerCard,
+                {
+                  borderColor: `${theme.primary}35`,
+                  backgroundColor: theme.glass,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.ledgerTitle,
+                  { color: theme.primaryLight, fontFamily: theme.labelFont },
+                ]}
+              >
+                Seasonal Ledger
+              </Text>
+              <Text
+                style={[
+                  styles.ledgerValue,
+                  { color: theme.textPrimary, fontFamily: theme.displayFont },
+                ]}
+              >
+                L{state.seasonLevel}
+              </Text>
+              <Text
+                style={[
+                  styles.ledgerSub,
+                  { color: theme.textSecondary, fontFamily: theme.bodyFont },
+                ]}
+              >
+                {state.seasonXp} XP • Resets
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.ledgerCard,
+                {
+                  borderColor: `${theme.primary}35`,
+                  backgroundColor: theme.glass,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.ledgerTitle,
+                  { color: theme.primaryLight, fontFamily: theme.labelFont },
+                ]}
+              >
+                Lifetime Ledger
+              </Text>
+              <Text
+                style={[
+                  styles.ledgerValue,
+                  { color: theme.textPrimary, fontFamily: theme.displayFont },
+                ]}
+              >
+                P{state.lifetimePrestige}
+              </Text>
+              <Text
+                style={[
+                  styles.ledgerSub,
+                  { color: theme.textSecondary, fontFamily: theme.bodyFont },
+                ]}
+              >
+                {state.lifetimeGems} Gems • Persists
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.faucetSinkRow}>
+            <View
+              style={[
+                styles.fsCard,
+                {
+                  borderColor: `${theme.primary}30`,
+                  backgroundColor: theme.glass,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.fsTitle,
+                  { color: "#7DE9C4", fontFamily: theme.labelFont },
+                ]}
+              >
+                Faucets
+              </Text>
+              <Text
+                style={[
+                  styles.fsBody,
+                  { color: theme.textSecondary, fontFamily: theme.bodyFont },
+                ]}
+              >
+                Lineup • Wins • Taunts • Sponsor
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.fsCard,
+                {
+                  borderColor: `${theme.primary}30`,
+                  backgroundColor: theme.glass,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.fsTitle,
+                  { color: "#FFB48C", fontFamily: theme.labelFont },
+                ]}
+              >
+                Sinks
+              </Text>
+              <Text
+                style={[
+                  styles.fsBody,
+                  { color: theme.textSecondary, fontFamily: theme.bodyFont },
+                ]}
+              >
+                Cosmetics • Boosts • Themes • Entry
+              </Text>
+            </View>
+          </View>
+          <Text
+            style={[
+              styles.commandCenterFootnote,
+              { color: theme.textMuted, fontFamily: theme.bodyFont },
+            ]}
+          >
+            Sink usage this session: {sinkUsageRate}%
+          </Text>
         </View>
 
         <TouchableOpacity
@@ -1125,6 +1329,7 @@ export default function InvestorDemoHomeScreen() {
           handleRoutePress("/(investor-demo)/battle-pass");
         }}
       />
+      <InvestorOverlay />
     </>
   );
 }
@@ -1292,6 +1497,90 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     flexShrink: 1,
     textAlign: "center",
+  },
+  commandCenterCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 12,
+    gap: 10,
+  },
+  commandCenterHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  commandCenterTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+  },
+  commandCenterNetPill: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  commandCenterNetText: {
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.25,
+  },
+  ledgerSplitRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  ledgerCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    gap: 2,
+  },
+  ledgerTitle: {
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.24,
+  },
+  ledgerValue: {
+    fontSize: 20,
+    lineHeight: 22,
+    fontWeight: "900",
+  },
+  ledgerSub: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  faucetSinkRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  fsCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 4,
+  },
+  fsTitle: {
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.24,
+  },
+  fsBody: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "600",
+  },
+  commandCenterFootnote: {
+    fontSize: 10,
+    fontWeight: "600",
+    textAlign: "right",
   },
   roadmapCard: {
     borderRadius: 16,

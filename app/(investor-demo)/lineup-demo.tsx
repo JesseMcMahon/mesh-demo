@@ -242,7 +242,7 @@ function getInitials(playerName: string) {
 
 export default function LineupDemoScreen() {
   const theme = useDemoTheme();
-  const { completeFeature } = useInvestorDemo();
+  const { completeFeature, addSeasonProgress } = useInvestorDemo();
   const [slots, setSlots] = useState<LineupSlot[]>(INITIAL_SLOTS);
   const [bench, setBench] = useState<string[]>(INITIAL_BENCH);
   const [swapSheet, setSwapSheet] = useState<SwapModalState>({ visible: false });
@@ -325,6 +325,7 @@ export default function LineupDemoScreen() {
     setMessage(`Lineup submitted. Projected ${starterProjection.toFixed(1)} points for Week 1.`);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     closeSwapSheet();
+    addSeasonProgress(40, 8, "nfl");
     completeFeature("lineup");
   };
 
@@ -337,6 +338,7 @@ export default function LineupDemoScreen() {
     <DemoModuleScaffold
       title="Set Lineup"
       subtitle="Manage starters and bench like a real fantasy football lineup, then lock it in."
+      moduleIntroKey="lineup"
       footer={
         <View style={styles.footerStack}>
           {isDirty ? (

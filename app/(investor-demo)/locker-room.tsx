@@ -277,6 +277,7 @@ export default function LockerRoomScreen() {
     <DemoModuleScaffold
       title="Locker Room"
       subtitle="Identity surface for achievements, rarity tiers, streaks, and long-term bragging rights."
+      moduleIntroKey="locker_room"
       footer={<FeatureFooter featureId="locker" />}
     >
       <LinearGradient

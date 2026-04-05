@@ -215,6 +215,7 @@ export default function MyLockerScreen() {
     <DemoModuleScaffold
       title="My Locker"
       subtitle="Equip suits, football cosmetics, and app themes from your unlocked inventory."
+      moduleIntroKey="my_locker"
       scrollViewProps={{
         stickyHeaderIndices: [0],
         bounces: false,

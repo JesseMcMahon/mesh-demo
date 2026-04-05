@@ -257,6 +257,7 @@ export default function BattlePassScreen() {
     <DemoModuleScaffold
       title="Battle Pass"
       subtitle="Milestone progression with cleaner reward clarity and unlock moments."
+      moduleIntroKey="battle_pass"
       footer={<FeatureFooter featureId="battlepass" />}
     >
       <View style={[styles.summaryCard, { borderColor: theme.primaryBorder, backgroundColor: theme.surfaceElevated }]}>

@@ -16,6 +16,7 @@ export default function TauntsScreen() {
     <DemoModuleScaffold
       title="Taunt Triggers"
       subtitle="High-hype moments can trigger social taunts that amplify rivalry and session stickiness."
+      moduleIntroKey="taunts"
       footer={<FeatureFooter featureId="taunts" />}
     >
       <View style={[styles.summaryCard, { borderColor: `${theme.primary}3C`, backgroundColor: theme.surfaceElevated }]}>

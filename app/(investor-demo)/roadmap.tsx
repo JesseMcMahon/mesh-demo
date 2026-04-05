@@ -249,10 +249,10 @@ const styles = StyleSheet.create({
   },
   trackBase: {
     position: "absolute",
-    left: 12,
+    left: 11,
     top: 18,
     bottom: 24,
-    width: 3,
+    width: 2,
     borderRadius: 999,
     overflow: "hidden",
   },

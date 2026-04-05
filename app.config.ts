@@ -15,12 +15,21 @@ const isInvestorDemo = appMode === "investor_demo";
 const demoBundleId = process.env.EXPO_PUBLIC_DEMO_BUNDLE_ID || "com.hfs.huddle.demo";
 const demoAndroidPackage =
   process.env.EXPO_PUBLIC_DEMO_ANDROID_PACKAGE || "com.hfs.huddle.demo";
+const easProjectId =
+  process.env.EXPO_PUBLIC_EAS_PROJECT_ID || "976e79fe-d8d1-4ad0-8971-b2e92ac54332";
 
 const config: ExpoConfig = {
   ...baseConfig,
-  name: isInvestorDemo ? "Mesh Demo" : baseConfig.name,
+  name: isInvestorDemo ? "Mesh Product Demo" : baseConfig.name,
   slug: isInvestorDemo ? "mesh-demo" : baseConfig.slug,
   scheme: isInvestorDemo ? "hfsdemo" : baseConfig.scheme,
+  runtimeVersion: {
+    policy: "appVersion",
+  },
+  updates: {
+    ...(baseConfig.updates || {}),
+    url: "https://u.expo.dev/976e79fe-d8d1-4ad0-8971-b2e92ac54332",
+  },
   ios: {
     ...baseConfig.ios,
     bundleIdentifier: isInvestorDemo
@@ -30,10 +39,10 @@ const config: ExpoConfig = {
     infoPlist: {
       ...(baseConfig.ios?.infoPlist || {}),
       CFBundleDisplayName: isInvestorDemo
-        ? "Mesh Demo"
+        ? "Mesh Product Demo"
         : (baseConfig.ios?.infoPlist as any)?.CFBundleDisplayName,
       CFBundleName: isInvestorDemo
-        ? "Mesh Demo"
+        ? "Mesh Product Demo"
         : (baseConfig.ios?.infoPlist as any)?.CFBundleName,
     },
   },
@@ -45,6 +54,10 @@ const config: ExpoConfig = {
   },
   extra: {
     ...(baseConfig.extra || {}),
+    eas: {
+      ...((baseConfig.extra as any)?.eas || {}),
+      projectId: easProjectId,
+    },
     appMode,
   },
 };

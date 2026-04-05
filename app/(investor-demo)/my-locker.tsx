@@ -206,9 +206,6 @@ export default function MyLockerScreen() {
     state.equipped.football
   );
 
-  const equippedFootballImage =
-    state.equipped.football === "none" ? null : DEMO_FOOTBALL_IMAGES[state.equipped.football];
-
   const unlockedSummary = useMemo(() => {
     const unlocked = state.unlockedItems.length;
     return `${unlocked}/4 Unlockables`;
@@ -218,67 +215,69 @@ export default function MyLockerScreen() {
     <DemoModuleScaffold
       title="My Locker"
       subtitle="Equip suits, football cosmetics, and app themes from your unlocked inventory."
+      scrollViewProps={{
+        stickyHeaderIndices: [0],
+        bounces: false,
+        alwaysBounceVertical: false,
+        contentContainerStyle: {
+          paddingHorizontal: 16,
+          paddingTop: 0,
+          paddingBottom: 22,
+          gap: 14,
+        },
+      }}
     >
-      <Animated.View style={[styles.previewAnimatedWrap, { transform: [{ scale: previewScale }] }]}>
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.loadoutFxBadge,
-            {
-              opacity: badgeOpacity,
-              transform: [{ translateY: badgeTranslateY }],
-              borderColor: `${theme.primary}70`,
-              backgroundColor: `${theme.primary}25`,
-            },
-          ]}
-        >
-          <MaterialIcons name="auto-awesome" size={14} color={theme.primaryLight} />
-          <Text style={[styles.loadoutFxBadgeText, { color: theme.primaryLight, fontFamily: theme.labelFont }]}>
-            {fxLabel}
-          </Text>
+      <View style={[styles.stickyPreviewContainer, { backgroundColor: theme.appBackground }]}>
+        <Animated.View style={[styles.previewAnimatedWrap, { transform: [{ scale: previewScale }] }]}>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.loadoutFxBadge,
+              {
+                opacity: badgeOpacity,
+                transform: [{ translateY: badgeTranslateY }],
+                borderColor: `${theme.primary}70`,
+                backgroundColor: `${theme.primary}25`,
+              },
+            ]}
+          >
+            <MaterialIcons name="auto-awesome" size={14} color={theme.primaryLight} />
+            <Text style={[styles.loadoutFxBadgeText, { color: theme.primaryLight, fontFamily: theme.labelFont }]}>
+              {fxLabel}
+            </Text>
+          </Animated.View>
+
+          <LinearGradient
+            colors={[`${theme.primary}38`, `${theme.primary}14`]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.previewCard, { borderColor: `${theme.primary}50` }]}
+          >
+            <View style={styles.previewHeader}>
+              <Text style={[styles.previewTitle, { color: theme.textPrimary, fontFamily: theme.displayFont }]}>Avatar Preview</Text>
+              <View style={[styles.previewPill, { borderColor: `${theme.primary}55`, backgroundColor: `${theme.primary}1A` }]}>
+                <Text style={[styles.previewPillText, { color: theme.primaryLight, fontFamily: theme.labelFont }]}>{unlockedSummary}</Text>
+              </View>
+            </View>
+
+            <View style={styles.previewImageFrame}>
+              <Image source={equippedAvatarPreviewImage} resizeMode="cover" style={styles.previewImage} />
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.sparkleOverlay,
+                  {
+                    opacity: sparkleOpacity,
+                    transform: [{ scale: sparkleScale }],
+                  },
+                ]}
+              >
+                <MaterialIcons name="auto-awesome" size={40} color={theme.primaryLight} />
+              </Animated.View>
+            </View>
+          </LinearGradient>
         </Animated.View>
-
-        <LinearGradient
-          colors={[`${theme.primary}38`, `${theme.primary}14`]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.previewCard, { borderColor: `${theme.primary}50` }]}
-        >
-          <View style={styles.previewHeader}>
-            <Text style={[styles.previewTitle, { color: theme.textPrimary, fontFamily: theme.displayFont }]}>Avatar Preview</Text>
-            <View style={[styles.previewPill, { borderColor: `${theme.primary}55`, backgroundColor: `${theme.primary}1A` }]}>
-              <Text style={[styles.previewPillText, { color: theme.primaryLight, fontFamily: theme.labelFont }]}>{unlockedSummary}</Text>
-            </View>
-          </View>
-
-          <View style={styles.previewImageFrame}>
-            <Image source={equippedAvatarPreviewImage} resizeMode="cover" style={styles.previewImage} />
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                styles.sparkleOverlay,
-                {
-                  opacity: sparkleOpacity,
-                  transform: [{ scale: sparkleScale }],
-                },
-              ]}
-            >
-              <MaterialIcons name="auto-awesome" size={40} color={theme.primaryLight} />
-            </Animated.View>
-          </View>
-
-          <View style={styles.equippedRow}>
-            <View style={[styles.equippedChip, { borderColor: `${theme.primary}3A`, backgroundColor: theme.glass }]}> 
-              <MaterialIcons name="checkroom" size={14} color={theme.primaryLight} />
-              <Text style={[styles.equippedChipText, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>Suit: {SUIT_OPTIONS.find((item) => item.id === state.equipped.suit)?.label ?? "Base Character"}</Text>
-            </View>
-            <View style={[styles.equippedChip, { borderColor: `${theme.primary}3A`, backgroundColor: theme.glass }]}> 
-              <MaterialIcons name="sports-football" size={14} color={theme.primaryLight} />
-              <Text style={[styles.equippedChipText, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>Football: {FOOTBALL_OPTIONS.find((item) => item.id === state.equipped.football)?.label ?? "None"}</Text>
-            </View>
-          </View>
-        </LinearGradient>
-      </Animated.View>
+      </View>
 
       <View style={styles.sectionHeaderRow}>
         <Text style={[styles.sectionTitle, { color: theme.textPrimary, fontFamily: theme.displayFont }]}>Suit Loadout</Text>
@@ -338,53 +337,73 @@ export default function MyLockerScreen() {
 
       <View style={styles.sectionHeaderRow}>
         <Text style={[styles.sectionTitle, { color: theme.textPrimary, fontFamily: theme.displayFont }]}>Football Cosmetics</Text>
-        <Text style={[styles.sectionMeta, { color: theme.textSecondary, fontFamily: theme.labelFont }]}>Inventory slot</Text>
+        <Text style={[styles.sectionMeta, { color: theme.textSecondary, fontFamily: theme.labelFont }]}>Tap to equip</Text>
       </View>
 
-      <View style={[styles.footballPanel, { borderColor: `${theme.primary}38`, backgroundColor: theme.surfaceElevated }]}>
-        <View style={styles.footballPreviewWrap}>
-          {equippedFootballImage ? (
-            <View style={styles.footballPreviewFrame}>
-              <Image source={equippedFootballImage} resizeMode="cover" style={styles.footballPreviewImage} />
-            </View>
-          ) : (
-            <View style={[styles.footballPlaceholder, { borderColor: `${theme.primary}44`, backgroundColor: `${theme.primary}14` }]}>
-              <MaterialIcons name="sports-football" size={28} color={theme.primaryLight} />
-              <Text style={[styles.footballPlaceholderText, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>No football equipped</Text>
-            </View>
-          )}
-        </View>
+      {FOOTBALL_OPTIONS.map((option) => {
+          const unlocked = option.itemId == null ? true : hasUnlockedItem(option.itemId);
+          const equipped = state.equipped.football === option.id;
+          const footballPreviewImage =
+            option.id === "none" ? null : DEMO_FOOTBALL_IMAGES[option.id];
 
-        <View style={styles.footballOptions}>
-          {FOOTBALL_OPTIONS.map((option) => {
-            const unlocked = option.itemId == null ? true : hasUnlockedItem(option.itemId);
-            const equipped = state.equipped.football === option.id;
+          return (
+            <TouchableOpacity
+              key={option.id}
+              activeOpacity={unlocked ? 0.88 : 1}
+              disabled={!unlocked}
+              onPress={() => onEquipFootball(option.id)}
+              style={[
+                styles.footballOptionRow,
+                {
+                  borderColor: equipped ? `${theme.primary}75` : `${theme.primary}32`,
+                  backgroundColor: equipped ? `${theme.primary}1D` : theme.surfaceElevated,
+                  opacity: unlocked ? 1 : 0.6,
+                },
+              ]}
+            >
+              <View style={styles.footballThumbFrame}>
+                {footballPreviewImage ? (
+                  <Image source={footballPreviewImage} resizeMode="cover" style={styles.footballThumbImage} />
+                ) : (
+                  <View style={[styles.footballThumbPlaceholder, { backgroundColor: `${theme.primary}20` }]}>
+                    <MaterialIcons name="sports-football" size={18} color={theme.primaryLight} />
+                  </View>
+                )}
+              </View>
 
-            return (
-              <TouchableOpacity
-                key={option.id}
-                activeOpacity={unlocked ? 0.88 : 1}
-                disabled={!unlocked}
-                onPress={() => onEquipFootball(option.id)}
+              <View style={styles.footballOptionInfo}>
+                <Text style={[styles.footballOptionName, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>
+                  {option.label}
+                </Text>
+                <Text style={[styles.footballOptionSub, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>
+                  {option.subtitle}
+                </Text>
+              </View>
+
+              <View
                 style={[
-                  styles.footballOptionRow,
+                  styles.statusPill,
                   {
-                    borderColor: equipped ? `${theme.primary}75` : `${theme.primary}32`,
-                    backgroundColor: equipped ? `${theme.primary}1D` : theme.glass,
-                    opacity: unlocked ? 1 : 0.6,
+                    borderColor: equipped
+                      ? `${theme.primary}66`
+                      : unlocked
+                        ? "rgba(52,199,89,0.48)"
+                        : "rgba(255,255,255,0.18)",
+                    backgroundColor: equipped
+                      ? `${theme.primary}22`
+                      : unlocked
+                        ? "rgba(52,199,89,0.15)"
+                        : `${theme.textMuted}22`,
                   },
                 ]}
               >
-                <Text style={[styles.footballOptionName, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>{option.label}</Text>
-                <Text style={[styles.footballOptionSub, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>{option.subtitle}</Text>
-                <Text style={[styles.footballOptionState, { color: theme.primaryLight, fontFamily: theme.labelFont }]}>
+                <Text style={[styles.statusPillText, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>
                   {equipped ? "Equipped" : unlocked ? "Unlocked" : "Locked"}
                 </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
+              </View>
+            </TouchableOpacity>
+          );
+      })}
 
       {!IS_INVESTOR_DEMO ? (
         <>
@@ -451,6 +470,12 @@ export default function MyLockerScreen() {
 }
 
 const styles = StyleSheet.create({
+  stickyPreviewContainer: {
+    paddingTop: 12,
+    paddingBottom: 6,
+    marginBottom: 0,
+    zIndex: 3,
+  },
   previewAnimatedWrap: {
     position: "relative",
   },
@@ -522,23 +547,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  equippedRow: {
-    gap: 8,
-  },
-  equippedChip: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  equippedChipText: {
-    fontSize: 11,
-    fontWeight: "700",
-    flex: 1,
-  },
   sectionHeaderRow: {
     marginTop: 4,
     flexDirection: "row",
@@ -597,62 +605,41 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.2,
   },
-  footballPanel: {
+  footballOptionRow: {
     borderRadius: 12,
     borderWidth: 1,
-    padding: 10,
+    padding: 9,
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
   },
-  footballPreviewWrap: {
-    width: "100%",
-  },
-  footballPreviewFrame: {
-    width: "100%",
+  footballThumbFrame: {
+    width: 96,
     aspectRatio: 1.5,
     borderRadius: 10,
     overflow: "hidden",
     backgroundColor: "rgba(8,20,32,0.58)",
   },
-  footballPreviewImage: {
+  footballThumbImage: {
     width: "100%",
     height: "100%",
   },
-  footballPlaceholder: {
-    width: "100%",
-    height: 120,
-    borderRadius: 10,
-    borderWidth: 1,
+  footballThumbPlaceholder: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
   },
-  footballPlaceholderText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  footballOptions: {
-    gap: 8,
-  },
-  footballOptionRow: {
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+  footballOptionInfo: {
+    flex: 1,
     gap: 2,
   },
   footballOptionName: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "800",
   },
   footballOptionSub: {
-    fontSize: 11,
-  },
-  footballOptionState: {
-    marginTop: 2,
-    fontSize: 10,
-    fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 0.24,
+    fontSize: 12,
+    lineHeight: 17,
   },
   themeCard: {
     borderRadius: 14,

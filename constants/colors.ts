@@ -77,7 +77,7 @@ export const TAB_BAR = {
   border: '#1D2A40',
   selectedBg: '#162235',
   unselectedBg: 'transparent',
-  selectedIcon: '#6EDBD1',
+  selectedIcon: defaultPalette.primaryLight,
   unselectedIcon: '#68758F',
   profileBg: '#162235',
   profileIcon: '#68758F',
@@ -110,7 +110,7 @@ export const ACTIVITY_COLORS = {
   drop: SEMANTIC.error,
   win: BRAND.gold,
   loss: TEXT.secondary,
-  matchup: '#5688C7',
+  matchup: defaultPalette.primaryLight,
   milestone: BRAND.gold,
 } as const;
 

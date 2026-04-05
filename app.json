@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "bundleIdentifier": "com.hfs.huddle",
-      "buildNumber": "56",
+      "buildNumber": "59",
       "supportsTablet": false,
       "associatedDomains": [
         "applinks:hfs.app.link",
@@ -113,10 +113,7 @@
       "reactCompiler": true
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "e31f13d5-f429-4661-9032-ae56214c4f09"
-      }
+      "router": {}
     },
     "owner": "jessemcmahon3"
   }

@@ -76,7 +76,7 @@ const PLAYERS: Record<string, Player> = {
     position: "RB",
     projection: 18.4,
     matchup: "@ TB",
-    headshotUrl: getNflHeadshot(4429795),
+    headshotUrl: getNflHeadshot(4430807),
   },
   jefferson: {
     id: "jefferson",
@@ -129,7 +129,7 @@ const PLAYERS: Record<string, Player> = {
     position: "K",
     projection: 8.4,
     matchup: "@ CLE",
-    headshotUrl: getNflHeadshot(13981),
+    headshotUrl: getNflHeadshot(15683),
   },
   tyreek: {
     id: "tyreek",
@@ -138,7 +138,7 @@ const PLAYERS: Record<string, Player> = {
     position: "WR",
     projection: 19.2,
     matchup: "@ BUF",
-    headshotUrl: getNflHeadshot(15802),
+    headshotUrl: getNflHeadshot(3116406),
   },
   saquon: {
     id: "saquon",
@@ -165,7 +165,7 @@ const PLAYERS: Record<string, Player> = {
     position: "RB",
     projection: 16.2,
     matchup: "@ NE",
-    headshotUrl: getNflHeadshot(4430807),
+    headshotUrl: getNflHeadshot(4427366),
   },
   laporta: {
     id: "laporta",
@@ -174,7 +174,7 @@ const PLAYERS: Record<string, Player> = {
     position: "TE",
     projection: 13.2,
     matchup: "vs GB",
-    headshotUrl: getNflHeadshot(4429084),
+    headshotUrl: getNflHeadshot(4430027),
   },
   hurts: {
     id: "hurts",

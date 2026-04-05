@@ -55,12 +55,12 @@ const DEMO_THEME_META: Record<
   >
 > = {
   default: {
-    description: "Mesh web-inspired dark navy + electric cyan premium system.",
+    description: "Mesh web-inspired dark navy + electric purple premium system.",
     headerGradient: ["#0A111B", "#0A111B", "#0A111B"],
     appBackground: "#070D15",
-    orbLeft: "rgba(95, 183, 198, 0.08)",
-    orbRight: "rgba(131, 149, 187, 0.08)",
-    kicker: "#7EB8C9",
+    orbLeft: "rgba(122, 107, 255, 0.15)",
+    orbRight: "rgba(182, 171, 255, 0.10)",
+    kicker: "#B8AEFF",
     card: "#101724",
     surface: "#0E1622",
     surfaceElevated: "#162132",

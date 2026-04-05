@@ -30,9 +30,17 @@ export default function BattlePassScreen() {
   const { state, completeSecondBattlePassAction, markRevealSeen, completeFeature } = useInvestorDemo();
 
   const [replayStage, setReplayStage] = useState<DemoRevealStage>(null);
+  const [timelineWidth, setTimelineWidth] = useState(0);
   const lastRevealStageRef = useRef<DemoRevealStage>(null);
 
   const tierLevels = useMemo(() => DEMO_BATTLE_PASS_TIERS.map((tier) => tier.level), []);
+  const unlockTierLevels = useMemo(
+    () =>
+      DEMO_BATTLE_PASS_TIERS.filter((tier) =>
+        tier.rewards.some((reward) => reward.type === "unlockable")
+      ).map((tier) => tier.level),
+    []
+  );
 
   const currentTierLevel = useMemo(() => {
     const exact = tierLevels.includes(state.battlePassLevel);
@@ -53,6 +61,21 @@ export default function BattlePassScreen() {
     if (tierLevels.length <= 1) return 0;
     return (currentIndex / (tierLevels.length - 1)) * 100;
   }, [currentIndex, tierLevels.length]);
+  const timelineInset = 8;
+  const usableTimelineWidth = Math.max(0, timelineWidth - timelineInset * 2);
+
+  const unlockProgressPct = useMemo(() => {
+    if (unlockTierLevels.length === 0) return 0;
+    if (unlockTierLevels.length === 1) {
+      return state.battlePassLevel >= unlockTierLevels[0] ? 100 : 0;
+    }
+
+    const first = unlockTierLevels[0];
+    const last = unlockTierLevels[unlockTierLevels.length - 1];
+    const span = Math.max(last - first, 1);
+    const ratio = (state.battlePassLevel - first) / span;
+    return Math.min(100, Math.max(0, ratio * 100));
+  }, [state.battlePassLevel, unlockTierLevels]);
 
   const derivedRevealStage = useMemo<DemoRevealStage>(() => {
     if (state.pendingReveal === "level10") return "level10";
@@ -243,13 +266,19 @@ export default function BattlePassScreen() {
         </View>
         <Text style={[styles.summaryCopy, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>Milestones at Levels 5 and 10 unlock suit + football bundles.</Text>
 
-        <View style={[styles.timelineTrack, { backgroundColor: `${theme.primary}12` }]}>
-          <View style={[styles.timelineFill, { width: `${progressPct}%`, backgroundColor: theme.primary }]} />
+        <View
+          style={[styles.timelineTrack, { backgroundColor: `${theme.primary}12` }]}
+          onLayout={(event) => setTimelineWidth(event.nativeEvent.layout.width)}
+        >
+          <View style={[styles.timelineFill, { left: timelineInset, width: (progressPct / 100) * usableTimelineWidth, backgroundColor: theme.primary }]} />
           {tierLevels.map((level, index) => {
-            const left = tierLevels.length <= 1 ? 0 : (index / (tierLevels.length - 1)) * 100;
+            const left =
+              tierLevels.length <= 1
+                ? timelineInset
+                : timelineInset + (index / (tierLevels.length - 1)) * usableTimelineWidth;
             const reached = level <= currentTierLevel;
             return (
-              <View key={`timeline-node-${level}`} style={[styles.timelineNodeWrap, { left: `${left}%` }]}>
+              <View key={`timeline-node-${level}`} style={[styles.timelineNodeWrap, { left }]}>
                 <Text style={[styles.timelineNodeLabel, { color: reached ? theme.textPrimary : theme.textMuted, fontFamily: theme.labelFont }]}>L{level}</Text>
                 <View
                   style={[
@@ -320,88 +349,126 @@ export default function BattlePassScreen() {
         ) : null}
       </View>
 
+      <View style={styles.unlockTimelineWrap}>
+        <View style={[styles.unlockTrackBase, { backgroundColor: `${theme.primary}25` }]}>
+          <View
+            style={[
+              styles.unlockTrackFill,
+              {
+                backgroundColor: theme.primary,
+                height: `${unlockProgressPct}%`,
+              },
+            ]}
+          />
+        </View>
+
       <View style={styles.tierStack}>
         {DEMO_BATTLE_PASS_TIERS.map((tier) => {
           const stateValue = getTierState(tier.level, currentTierLevel);
           const tone = tierStateTone(stateValue);
+          const hasUnlockable = tier.rewards.some((reward) => reward.type === "unlockable");
+          const unlockReached = hasUnlockable && state.battlePassLevel >= tier.level;
 
           return (
-            <View
-              key={tier.level}
-              style={[
-                styles.tierCard,
-                {
-                  borderColor: tone.border,
-                  backgroundColor: tone.cardBg,
-                },
-              ]}
-            >
-              <View style={styles.tierHeader}>
-                <View style={styles.tierHeaderLeft}>
-                  <Text style={[styles.tierLevel, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>Level {tier.level}</Text>
-                  <Text style={[styles.tierChallenge, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>{tier.challenge}</Text>
+            <View key={tier.level} style={styles.tierRow}>
+              {hasUnlockable ? (
+                <View
+                  style={[
+                    styles.unlockNodeOuter,
+                    {
+                      borderColor: unlockReached ? `${theme.primary}A8` : `${theme.primary}4A`,
+                      backgroundColor: unlockReached ? `${theme.primary}2A` : theme.surface,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.unlockNodeInner,
+                      {
+                        backgroundColor: unlockReached ? theme.primary : `${theme.textMuted}7A`,
+                      },
+                    ]}
+                  />
+                </View>
+              ) : null}
+
+              <View
+                style={[
+                  styles.tierCard,
+                  {
+                    borderColor: tone.border,
+                    backgroundColor: tone.cardBg,
+                  },
+                ]}
+              >
+                <View style={styles.tierHeader}>
+                  <View style={styles.tierHeaderLeft}>
+                    <Text style={[styles.tierLevel, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>Level {tier.level}</Text>
+                    <Text style={[styles.tierChallenge, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>{tier.challenge}</Text>
+                  </View>
+
+                  <View style={[styles.tierStatePill, { borderColor: tone.border, backgroundColor: theme.surface }]}> 
+                    <Text style={[styles.tierStateText, { color: tone.text, fontFamily: theme.labelFont }]}>{tone.label}</Text>
+                  </View>
                 </View>
 
-                <View style={[styles.tierStatePill, { borderColor: tone.border, backgroundColor: theme.surface }]}> 
-                  <Text style={[styles.tierStateText, { color: tone.text, fontFamily: theme.labelFont }]}>{tone.label}</Text>
-                </View>
-              </View>
+                <View style={styles.rewardStack}>
+                  {tier.rewards.map((reward) => {
+                    if (reward.type === "unlockable") {
+                      const item = DEMO_UNLOCK_ITEMS[reward.itemId];
+                      const unlocked = isUnlocked(item.id);
+                      const equipped = isEquipped(item.id);
+                      const lane = laneTone(item.lane);
 
-              <View style={styles.rewardStack}>
-                {tier.rewards.map((reward) => {
-                  if (reward.type === "unlockable") {
-                    const item = DEMO_UNLOCK_ITEMS[reward.itemId];
-                    const unlocked = isUnlocked(item.id);
-                    const equipped = isEquipped(item.id);
-                    const lane = laneTone(item.lane);
+                      return (
+                        <View key={item.id} style={[styles.rewardRow, { borderColor: theme.primaryBorder, backgroundColor: theme.surface }]}> 
+                          <Image source={item.image} resizeMode="cover" style={styles.rewardImage} />
+                          <View style={styles.rewardMeta}>
+                            <Text style={[styles.rewardName, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>{item.name}</Text>
+                            <View style={styles.rewardPills}>
+                              <View style={[styles.lanePill, lane]}>
+                                <Text style={[styles.laneText, { color: lane.color, fontFamily: theme.labelFont }]}>{item.lane}</Text>
+                              </View>
+                              <View
+                                style={[
+                                  styles.statusPill,
+                                  {
+                                    borderColor: unlocked ? "rgba(117, 208, 182, 0.48)" : `${theme.textMuted}44`,
+                                    backgroundColor: unlocked ? "rgba(117, 208, 182, 0.16)" : `${theme.textMuted}18`,
+                                  },
+                                ]}
+                              >
+                                <Text style={[styles.statusText, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>
+                                  {equipped ? "Equipped" : unlocked ? "Unlocked" : "Locked"}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    }
 
+                    const lane = laneTone(reward.lane);
                     return (
-                      <View key={item.id} style={[styles.rewardRow, { borderColor: theme.primaryBorder, backgroundColor: theme.surface }]}> 
-                        <Image source={item.image} resizeMode="cover" style={styles.rewardImage} />
+                      <View key={reward.id} style={[styles.rewardRow, { borderColor: theme.primaryBorder, backgroundColor: theme.surface }]}> 
+                        <View style={[styles.metaIconWrap, { backgroundColor: `${lane.color}20` }]}> 
+                          <MaterialIcons name={reward.icon as keyof typeof MaterialIcons.glyphMap} size={16} color={lane.color} />
+                        </View>
                         <View style={styles.rewardMeta}>
-                          <Text style={[styles.rewardName, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>{item.name}</Text>
-                          <View style={styles.rewardPills}>
-                            <View style={[styles.lanePill, lane]}>
-                              <Text style={[styles.laneText, { color: lane.color, fontFamily: theme.labelFont }]}>{item.lane}</Text>
-                            </View>
-                            <View
-                              style={[
-                                styles.statusPill,
-                                {
-                                  borderColor: unlocked ? "rgba(117, 208, 182, 0.48)" : `${theme.textMuted}44`,
-                                  backgroundColor: unlocked ? "rgba(117, 208, 182, 0.16)" : `${theme.textMuted}18`,
-                                },
-                              ]}
-                            >
-                              <Text style={[styles.statusText, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>
-                                {equipped ? "Equipped" : unlocked ? "Unlocked" : "Locked"}
-                              </Text>
-                            </View>
+                          <Text style={[styles.rewardName, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>{reward.name}</Text>
+                          <View style={[styles.lanePill, lane]}>
+                            <Text style={[styles.laneText, { color: lane.color, fontFamily: theme.labelFont }]}>{reward.lane}</Text>
                           </View>
                         </View>
                       </View>
                     );
-                  }
-
-                  const lane = laneTone(reward.lane);
-                  return (
-                    <View key={reward.id} style={[styles.rewardRow, { borderColor: theme.primaryBorder, backgroundColor: theme.surface }]}> 
-                      <View style={[styles.metaIconWrap, { backgroundColor: `${lane.color}20` }]}> 
-                        <MaterialIcons name={reward.icon as keyof typeof MaterialIcons.glyphMap} size={16} color={lane.color} />
-                      </View>
-                      <View style={styles.rewardMeta}>
-                        <Text style={[styles.rewardName, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>{reward.name}</Text>
-                        <View style={[styles.lanePill, lane]}>
-                          <Text style={[styles.laneText, { color: lane.color, fontFamily: theme.labelFont }]}>{reward.lane}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
+                  })}
+                </View>
               </View>
             </View>
           );
         })}
+      </View>
       </View>
 
       {showGoToLockerPrompt ? (
@@ -494,8 +561,7 @@ const styles = StyleSheet.create({
   },
   timelineFill: {
     position: "absolute",
-    left: 8,
-    width: "0%",
+    width: 0,
     top: 18,
     bottom: 18,
     borderRadius: 999,
@@ -585,6 +651,43 @@ const styles = StyleSheet.create({
   },
   tierStack: {
     gap: 12,
+  },
+  unlockTimelineWrap: {
+    position: "relative",
+    paddingLeft: 34,
+  },
+  unlockTrackBase: {
+    position: "absolute",
+    left: 11,
+    top: 34,
+    bottom: 34,
+    width: 2,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  unlockTrackFill: {
+    width: "100%",
+    borderRadius: 999,
+  },
+  tierRow: {
+    position: "relative",
+  },
+  unlockNodeOuter: {
+    position: "absolute",
+    left: -34,
+    top: 22,
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+  },
+  unlockNodeInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
   },
   tierCard: {
     borderRadius: 14,

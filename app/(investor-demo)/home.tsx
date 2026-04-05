@@ -1,7 +1,5 @@
-import { UnlockRevealModal } from "@/components/demo/UnlockRevealModal";
 import { InvestorOverlay } from "@/components/demo/InvestorOverlay";
 import { useInvestorDemo } from "@/contexts/investor-demo";
-import { getUnlockItemsForLevel } from "@/lib/demoBattlePass";
 import { useDemoTheme } from "@/lib/demoTheme";
 import { DEMO_FEATURES, DemoFeatureId } from "@/lib/investorDemoContent";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -85,14 +83,11 @@ export default function InvestorDemoHomeScreen() {
     nextLevelXp,
     isFeatureComplete,
     startBattlePassProgression,
-    acknowledgeHelperPrompt,
-    markHomeLevel5PromptSeen,
     markCinematicIntroSeen,
     togglePresenterOverlay,
   } = useInvestorDemo();
   const theme = useDemoTheme();
 
-  const unlockLevelFiveItems = useMemo(() => getUnlockItemsForLevel(5), []);
   const [introStepIndex, setIntroStepIndex] = useState(0);
   const introOpacity = useRef(new Animated.Value(0)).current;
   const introTranslateY = useRef(new Animated.Value(14)).current;
@@ -107,7 +102,10 @@ export default function InvestorDemoHomeScreen() {
   const handleStartProgression = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
     startBattlePassProgression();
-  }, [startBattlePassProgression]);
+    requestAnimationFrame(() => {
+      router.replace("/(investor-demo)/battle-pass" as any);
+    });
+  }, [router, startBattlePassProgression]);
 
   const handleRoutePress = useCallback(
     (route: string) => {
@@ -146,13 +144,6 @@ export default function InvestorDemoHomeScreen() {
       : 0;
 
   const showIntroModal = !state.hasSeenCinematicIntro;
-  const showHelperModal =
-    state.hasSeenCinematicIntro &&
-    state.progressStep === "intro" &&
-    !state.hasSeenHelper;
-  const showHomeUnlockPrompt =
-    state.progressStep === "first_unlock_done" &&
-    !state.hasSeenHomeLevel5Prompt;
   const introStep = INTRO_STEPS[introStepIndex];
   const isLastIntroStep = introStepIndex === INTRO_STEPS.length - 1;
 
@@ -1241,94 +1232,6 @@ export default function InvestorDemoHomeScreen() {
         </View>
       </Modal>
 
-      <Modal transparent visible={showHelperModal} animationType="fade">
-        <View style={styles.helperOverlay}>
-          <View
-            style={[
-              styles.helperCard,
-              {
-                borderColor: `${theme.primary}66`,
-                backgroundColor: theme.surface,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.helperTitle,
-                { color: theme.textPrimary, fontFamily: theme.displayFont },
-              ]}
-            >
-              Start The Unlock Journey
-            </Text>
-            <Text
-              style={[
-                styles.helperBody,
-                { color: theme.textSecondary, fontFamily: theme.bodyFont },
-              ]}
-            >
-              Tap start to trigger your first milestone and unlock the Level 5
-              reward bundle.
-            </Text>
-
-            <TouchableOpacity
-              style={[styles.helperCta, { backgroundColor: theme.primary }]}
-              activeOpacity={0.88}
-              onPress={handleStartProgression}
-            >
-              <Text
-                style={[
-                  styles.helperCtaText,
-                  { color: theme.appBackground, fontFamily: theme.buttonFont },
-                ]}
-              >
-                Start Unlock Journey
-              </Text>
-              <MaterialIcons
-                name="arrow-forward"
-                size={17}
-                color={theme.appBackground}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.helperSecondary}
-              onPress={() => {
-                Haptics.selectionAsync().catch(() => {});
-                acknowledgeHelperPrompt();
-              }}
-            >
-              <Text
-                style={[
-                  styles.helperSecondaryText,
-                  { color: theme.textMuted, fontFamily: theme.bodyFont },
-                ]}
-              >
-                Skip helper
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      <UnlockRevealModal
-        visible={showHomeUnlockPrompt}
-        title="Level 5 Milestone Unlocked"
-        subtitle="You unlocked your first battle pass bundle. Jump into the pass to view live progression and rewards."
-        items={unlockLevelFiveItems}
-        accent={theme.primary}
-        accentLight={theme.primaryLight}
-        textPrimary={theme.textPrimary}
-        textSecondary={theme.textSecondary}
-        bodyFont={theme.bodyFont}
-        labelFont={theme.labelFont}
-        buttonFont={theme.buttonFont}
-        ctaLabel="See Unlocked Battle Pass Items"
-        onClose={markHomeLevel5PromptSeen}
-        onCta={() => {
-          markHomeLevel5PromptSeen();
-          handleRoutePress("/(investor-demo)/battle-pass");
-        }}
-      />
       <InvestorOverlay />
     </>
   );
@@ -1506,26 +1409,31 @@ const styles = StyleSheet.create({
   },
   commandCenterHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 8,
   },
   commandCenterTitle: {
+    flex: 1,
+    minWidth: 0,
     fontSize: 18,
     fontWeight: "900",
     letterSpacing: 0.2,
   },
   commandCenterNetPill: {
+    flexShrink: 1,
+    maxWidth: "46%",
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: 9,
     paddingVertical: 5,
   },
   commandCenterNetText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: "900",
     textTransform: "uppercase",
     letterSpacing: 0.25,
+    textAlign: "center",
   },
   ledgerSplitRow: {
     flexDirection: "row",
@@ -1862,49 +1770,5 @@ const styles = StyleSheet.create({
   introNextText: {
     fontSize: 14,
     fontWeight: "800",
-  },
-  helperOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(4, 12, 20, 0.8)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-  },
-  helperCard: {
-    width: "100%",
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 16,
-    gap: 12,
-  },
-  helperTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-  },
-  helperBody: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: "600",
-  },
-  helperCta: {
-    minHeight: 48,
-    borderRadius: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-  },
-  helperCtaText: {
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  helperSecondary: {
-    alignSelf: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
-  helperSecondaryText: {
-    fontSize: 12,
-    fontWeight: "600",
   },
 });

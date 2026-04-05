@@ -1,3 +1,6 @@
+import { DemoModuleScaffold } from "@/components/demo/DemoModuleScaffold";
+import { useDemoTheme } from "@/lib/demoTheme";
+import { MaterialIcons } from "@expo/vector-icons";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   NativeScrollEvent,
@@ -6,9 +9,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
-import { DemoModuleScaffold } from "@/components/demo/DemoModuleScaffold";
-import { useDemoTheme } from "@/lib/demoTheme";
 
 type RoadmapItem = {
   id: string;
@@ -44,7 +44,7 @@ const ROADMAP_ITEMS: RoadmapItem[] = [
     season: "Summer 2027",
     title: "Reality TV Brackets",
     description:
-      "Compete on Survivor, Bachelor, and Big Brother with social picks, side quests, and shared squad goals.",
+      "Compete on Love Island, Survivor, and The Bachelorette with social picks, side quests, and shared squad goals.",
     tags: ["Reality TV", "Brackets", "New Challenges"],
   },
   {
@@ -62,16 +62,23 @@ export default function RoadmapScreen() {
   const theme = useDemoTheme();
   const [scrollProgress, setScrollProgress] = useState(0);
 
-  const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const maxScroll = Math.max(contentSize.height - layoutMeasurement.height, 1);
-    const ratio = Math.min(Math.max(contentOffset.y / maxScroll, 0), 1);
-    setScrollProgress(ratio);
-  }, []);
+  const onScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } =
+        event.nativeEvent;
+      const maxScroll = Math.max(
+        contentSize.height - layoutMeasurement.height,
+        1,
+      );
+      const ratio = Math.min(Math.max(contentOffset.y / maxScroll, 0), 1);
+      setScrollProgress(ratio);
+    },
+    [],
+  );
 
   const progressHeight = useMemo(
     () => `${Math.round(scrollProgress * 100)}%` as `${number}%`,
-    [scrollProgress]
+    [scrollProgress],
   );
 
   return (
@@ -93,23 +100,45 @@ export default function RoadmapScreen() {
           },
         ]}
       >
-        <Text style={[styles.kicker, { color: theme.kicker, fontFamily: theme.labelFont }]}>
+        <Text
+          style={[
+            styles.kicker,
+            { color: theme.kicker, fontFamily: theme.labelFont },
+          ]}
+        >
           What&apos;s Coming
         </Text>
-        <Text style={[styles.heroTitle, { color: theme.textPrimary, fontFamily: theme.displayFont }]}>
+        <Text
+          style={[
+            styles.heroTitle,
+            { color: theme.textPrimary, fontFamily: theme.displayFont },
+          ]}
+        >
           ONE PLATFORM.
         </Text>
-        <Text style={[styles.heroTitle, { color: theme.primary, fontFamily: theme.displayFont }]}>
+        <Text
+          style={[
+            styles.heroTitle,
+            { color: theme.primary, fontFamily: theme.displayFont },
+          ]}
+        >
           EVERY SEASON.
         </Text>
-        <Text style={[styles.heroBody, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>
-          New formats, new sports, and new ways to compete with your squad all year.
-          Scroll the timeline to see what drops next.
+        <Text
+          style={[
+            styles.heroBody,
+            { color: theme.textSecondary, fontFamily: theme.bodyFont },
+          ]}
+        >
+          New formats, new sports, and new ways to compete with your squad all
+          year. Scroll the timeline to see what drops next.
         </Text>
       </View>
 
       <View style={styles.timelineWrap}>
-        <View style={[styles.trackBase, { backgroundColor: `${theme.primary}2A` }]}>
+        <View
+          style={[styles.trackBase, { backgroundColor: `${theme.primary}2A` }]}
+        >
           <View
             style={[
               styles.trackProgress,
@@ -122,7 +151,8 @@ export default function RoadmapScreen() {
         </View>
 
         {ROADMAP_ITEMS.map((item, index) => {
-          const threshold = ROADMAP_ITEMS.length <= 1 ? 0 : index / (ROADMAP_ITEMS.length - 1);
+          const threshold =
+            ROADMAP_ITEMS.length <= 1 ? 0 : index / (ROADMAP_ITEMS.length - 1);
           const isActive = scrollProgress >= threshold - 0.08;
 
           return (
@@ -131,8 +161,12 @@ export default function RoadmapScreen() {
                 style={[
                   styles.nodeOuter,
                   {
-                    borderColor: isActive ? `${theme.primary}A8` : `${theme.primary}4A`,
-                    backgroundColor: isActive ? `${theme.primary}2B` : theme.surface,
+                    borderColor: isActive
+                      ? `${theme.primary}A8`
+                      : `${theme.primary}4A`,
+                    backgroundColor: isActive
+                      ? `${theme.primary}2B`
+                      : theme.surface,
                   },
                 ]}
               >
@@ -140,7 +174,9 @@ export default function RoadmapScreen() {
                   style={[
                     styles.nodeInner,
                     {
-                      backgroundColor: isActive ? theme.primary : `${theme.textMuted}7A`,
+                      backgroundColor: isActive
+                        ? theme.primary
+                        : `${theme.textMuted}7A`,
                     },
                   ]}
                 />
@@ -150,7 +186,9 @@ export default function RoadmapScreen() {
                 style={[
                   styles.card,
                   {
-                    borderColor: isActive ? `${theme.primary}6A` : theme.primaryBorder,
+                    borderColor: isActive
+                      ? `${theme.primary}6A`
+                      : theme.primaryBorder,
                     backgroundColor: theme.surfaceElevated,
                     shadowColor: isActive ? theme.primary : "#000000",
                     shadowOpacity: isActive ? 0.22 : 0.06,
@@ -161,8 +199,12 @@ export default function RoadmapScreen() {
                   style={[
                     styles.pill,
                     {
-                      borderColor: isActive ? `${theme.primary}66` : `${theme.textMuted}55`,
-                      backgroundColor: isActive ? `${theme.primary}20` : `${theme.textMuted}18`,
+                      borderColor: isActive
+                        ? `${theme.primary}66`
+                        : `${theme.textMuted}55`,
+                      backgroundColor: isActive
+                        ? `${theme.primary}20`
+                        : `${theme.textMuted}18`,
                     },
                   ]}
                 >
@@ -179,13 +221,28 @@ export default function RoadmapScreen() {
                   </Text>
                 </View>
 
-                <Text style={[styles.season, { color: theme.textMuted, fontFamily: theme.bodyFont }]}>
+                <Text
+                  style={[
+                    styles.season,
+                    { color: theme.textMuted, fontFamily: theme.bodyFont },
+                  ]}
+                >
                   {item.season}
                 </Text>
-                <Text style={[styles.cardTitle, { color: theme.textPrimary, fontFamily: theme.displayFont }]}>
+                <Text
+                  style={[
+                    styles.cardTitle,
+                    { color: theme.textPrimary, fontFamily: theme.displayFont },
+                  ]}
+                >
                   {item.title}
                 </Text>
-                <Text style={[styles.description, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>
+                <Text
+                  style={[
+                    styles.description,
+                    { color: theme.textSecondary, fontFamily: theme.bodyFont },
+                  ]}
+                >
                   {item.description}
                 </Text>
 
@@ -201,8 +258,20 @@ export default function RoadmapScreen() {
                         },
                       ]}
                     >
-                      <MaterialIcons name="bolt" size={12} color={theme.primaryLight} />
-                      <Text style={[styles.tagText, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>
+                      <MaterialIcons
+                        name="bolt"
+                        size={12}
+                        color={theme.primaryLight}
+                      />
+                      <Text
+                        style={[
+                          styles.tagText,
+                          {
+                            color: theme.textPrimary,
+                            fontFamily: theme.labelFont,
+                          },
+                        ]}
+                      >
                         {tag}
                       </Text>
                     </View>

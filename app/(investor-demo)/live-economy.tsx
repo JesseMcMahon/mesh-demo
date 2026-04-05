@@ -65,7 +65,6 @@ export default function LiveEconomyScreen() {
     recordLiveMoment,
     recordSponsorEvent,
     addSquadContribution,
-    recordEconomySpend,
   } = useInvestorDemo();
   const [lastMoment, setLastMoment] = useState<string | null>(null);
 
@@ -308,28 +307,6 @@ export default function LiveEconomyScreen() {
               Add Squad Progress
             </Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.86}
-            disabled={state.lifetimeGems < 40}
-            style={[
-              styles.squadSpendBtn,
-              {
-                borderColor: `${theme.primary}50`,
-                backgroundColor: theme.surface,
-                opacity: state.lifetimeGems < 40 ? 0.55 : 1,
-              },
-            ]}
-            onPress={() => {
-              Haptics.selectionAsync().catch(() => {});
-              recordEconomySpend(40);
-            }}
-          >
-            <MaterialIcons name="storefront" size={15} color={theme.primaryLight} />
-            <Text style={[styles.squadSpendText, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>
-              Buy Team Boost (-40)
-            </Text>
-          </TouchableOpacity>
         </View>
       </View>
     </DemoModuleScaffold>
@@ -517,20 +494,6 @@ const styles = StyleSheet.create({
   },
   squadActionText: {
     fontSize: 12,
-    fontWeight: "800",
-  },
-  squadSpendBtn: {
-    borderWidth: 1,
-    borderRadius: 11,
-    minHeight: 42,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-  },
-  squadSpendText: {
-    fontSize: 11,
     fontWeight: "800",
   },
 });

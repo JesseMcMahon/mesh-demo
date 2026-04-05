@@ -27,7 +27,13 @@ function getTierState(tierLevel: number, currentLevel: number): TierVisualState 
 export default function BattlePassScreen() {
   const router = useRouter();
   const theme = useDemoTheme();
-  const { state, completeSecondBattlePassAction, markRevealSeen, completeFeature } = useInvestorDemo();
+  const {
+    state,
+    completeSecondBattlePassAction,
+    markRevealSeen,
+    completeFeature,
+    hasSeenModuleIntro,
+  } = useInvestorDemo();
 
   const [replayStage, setReplayStage] = useState<DemoRevealStage>(null);
   const [timelineWidth, setTimelineWidth] = useState(0);
@@ -102,6 +108,8 @@ export default function BattlePassScreen() {
   ]);
 
   const activeRevealStage = replayStage ?? derivedRevealStage;
+  const shouldShowModuleIntro =
+    activeRevealStage == null && !hasSeenModuleIntro("battle_pass");
 
   useEffect(() => {
     if (activeRevealStage != null && lastRevealStageRef.current !== activeRevealStage) {
@@ -257,7 +265,7 @@ export default function BattlePassScreen() {
     <DemoModuleScaffold
       title="Battle Pass"
       subtitle="Milestone progression with cleaner reward clarity and unlock moments."
-      moduleIntroKey="battle_pass"
+      moduleIntroKey={shouldShowModuleIntro ? "battle_pass" : undefined}
       footer={<FeatureFooter featureId="battlepass" />}
     >
       <View style={[styles.summaryCard, { borderColor: theme.primaryBorder, backgroundColor: theme.surfaceElevated }]}>

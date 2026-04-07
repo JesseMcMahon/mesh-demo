@@ -16,7 +16,7 @@ export default function SplashScreen() {
 
   useEffect(() => {
     if (IS_INVESTOR_DEMO) {
-      router.replace("/(investor-demo)/home" as any);
+      router.replace("/(investor-demo)/home-v2" as any);
       return;
     }
 

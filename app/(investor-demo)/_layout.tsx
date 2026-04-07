@@ -3,11 +3,13 @@ import { Stack } from "expo-router";
 export default function InvestorDemoLayout() {
   return (
     <Stack
+      initialRouteName="home-v2"
       screenOptions={{
         headerShown: false,
         animation: "fade",
       }}
     >
+      <Stack.Screen name="home-v2" />
       <Stack.Screen name="home" />
       <Stack.Screen name="roadmap" />
       <Stack.Screen name="lineup-demo" />

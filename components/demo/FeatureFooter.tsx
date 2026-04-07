@@ -92,10 +92,10 @@ export function FeatureFooter({
                 if (nextFeature != null) {
                   router.push(`${nextFeature.route}?guided=1` as any);
                 } else {
-                  router.replace("/(investor-demo)/home" as any);
+                  router.replace("/(investor-demo)/home-v2" as any);
                 }
               } else {
-                router.replace("/(investor-demo)/home" as any);
+                router.replace("/(investor-demo)/home-v2" as any);
               }
             }}
           >

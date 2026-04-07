@@ -96,7 +96,7 @@ export function DemoModuleScaffold({
           <TouchableOpacity
             accessibilityRole="button"
             activeOpacity={0.82}
-            onPress={() => router.replace("/(investor-demo)/home" as any)}
+            onPress={() => router.replace("/(investor-demo)/home-v2" as any)}
             onLongPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
               togglePresenterOverlay();

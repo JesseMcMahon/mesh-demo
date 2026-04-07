@@ -120,7 +120,7 @@ export default function BattlePassScreen() {
 
   const openLocker = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    router.push("/(investor-demo)/my-locker" as any);
+    router.push("/(investor-demo)/my-locker-v2" as any);
   }, [router]);
 
   const handleSecondAction = useCallback(() => {

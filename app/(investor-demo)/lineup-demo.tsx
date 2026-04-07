@@ -1,955 +1,632 @@
-import React, { useCallback, useMemo, useState } from "react";
-import {
-  Image,
-  Modal,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import React from "react";
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
-import { DemoModuleScaffold } from "@/components/demo/DemoModuleScaffold";
-import { FeatureFooter } from "@/components/demo/FeatureFooter";
-import { useDemoTheme } from "@/lib/demoTheme";
-import { useInvestorDemo } from "@/contexts/investor-demo";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 
-type PlayerPosition = "QB" | "RB" | "WR" | "TE" | "DST" | "K";
-type SlotId = "QB" | "RB1" | "RB2" | "WR1" | "WR2" | "TE" | "FLEX" | "DST" | "K";
+const LEFT_CHARACTER = require("../../assets/demo-assets/home-hero-character.png");
+const RIGHT_CHARACTER = require("../../assets/demo-assets/home-hero-character.png");
 
-type Player = {
-  id: string;
+type SidePlayer = {
   name: string;
-  team: string;
-  position: PlayerPosition;
-  projection: number;
-  matchup: string;
-  headshotUrl?: string;
+  meta: string;
+  points: string;
+  initials: string;
+  injury?: "Q" | "O";
+  scoring?: boolean;
+  bench?: boolean;
 };
 
-type LineupSlot = {
-  id: SlotId;
-  label: string;
-  allowed: PlayerPosition[];
-  playerId: string;
+type MatchupRow = {
+  position: string;
+  left: SidePlayer;
+  right: SidePlayer;
+  bench?: boolean;
 };
 
-type SwapModalState =
-  | {
-      visible: false;
-    }
-  | {
-      visible: true;
-      source: "starter" | "bench";
-      slotId?: SlotId;
-      benchPlayerId?: string;
-    };
-
-function getNflHeadshot(espnPlayerId: number) {
-  return `https://a.espncdn.com/combiner/i?img=/i/headshots/nfl/players/full/${espnPlayerId}.png&w=96&h=96&scale=crop`;
-}
-
-const PLAYERS: Record<string, Player> = {
-  josh_allen: {
-    id: "josh_allen",
-    name: "Josh Allen",
-    team: "BUF",
+const STARTERS: MatchupRow[] = [
+  {
     position: "QB",
-    projection: 24.7,
-    matchup: "vs MIA",
-    headshotUrl: getNflHeadshot(3918298),
+    left: { name: "J. Burrow", meta: "CIN · vs LAR", points: "28.4", initials: "JB", scoring: true },
+    right: { name: "L. Jackson", meta: "BAL · vs PIT", points: "21.2", initials: "LJ" },
   },
-  cmc: {
-    id: "cmc",
-    name: "Christian McCaffrey",
-    team: "SF",
+  {
     position: "RB",
-    projection: 21.3,
-    matchup: "vs SEA",
-    headshotUrl: getNflHeadshot(3117251),
+    left: { name: "C. McCaffrey", meta: "SF · at SEA", points: "18.7", initials: "CM" },
+    right: { name: "D. Adams", meta: "KC · at LV · Q", points: "4.1", initials: "DA", injury: "Q" },
   },
-  bijan: {
-    id: "bijan",
-    name: "Bijan Robinson",
-    team: "ATL",
+  {
     position: "RB",
-    projection: 18.4,
-    matchup: "@ TB",
-    headshotUrl: getNflHeadshot(4430807),
+    left: { name: "B. Robinson", meta: "ATL · vs TB", points: "12.3", initials: "BR" },
+    right: { name: "A. Jones", meta: "MIN · vs GB", points: "9.8", initials: "AJ" },
   },
-  jefferson: {
-    id: "jefferson",
-    name: "Justin Jefferson",
-    team: "MIN",
+  {
     position: "WR",
-    projection: 20.1,
-    matchup: "vs CHI",
-    headshotUrl: getNflHeadshot(4262921),
+    left: { name: "J. Jefferson", meta: "MIN · vs GB 🔥", points: "24.6", initials: "JJ", scoring: true },
+    right: { name: "S. Thomas", meta: "NO · vs CAR", points: "14.2", initials: "ST" },
   },
-  chase: {
-    id: "chase",
-    name: "Ja'Marr Chase",
-    team: "CIN",
+  {
     position: "WR",
-    projection: 19.6,
-    matchup: "@ PIT",
-    headshotUrl: getNflHeadshot(4362628),
+    left: { name: "D. Adams", meta: "LV · at KC", points: "11.2", initials: "DA" },
+    right: { name: "T. Hill", meta: "MIA · vs BUF", points: "22.1", initials: "TH" },
   },
-  kelce: {
-    id: "kelce",
-    name: "Travis Kelce",
-    team: "KC",
+  {
     position: "TE",
-    projection: 16.3,
-    matchup: "vs LV",
-    headshotUrl: getNflHeadshot(15847),
+    left: { name: "T. Kelce", meta: "KC · vs LV", points: "16.4", initials: "TK" },
+    right: { name: "M. Hockenson", meta: "MIN · vs GB", points: "8.2", initials: "MH" },
   },
-  puka: {
-    id: "puka",
-    name: "Puka Nacua",
-    team: "LAR",
-    position: "WR",
-    projection: 16.4,
-    matchup: "@ ARI",
-    headshotUrl: getNflHeadshot(4426515),
+  {
+    position: "FLX",
+    left: { name: "G. Pickens", meta: "PIT · at BAL", points: "15.0", initials: "GP" },
+    right: { name: "J. Waddle", meta: "MIA · vs BUF", points: "16.4", initials: "JW" },
   },
-  ravens_dst: {
-    id: "ravens_dst",
-    name: "Ravens D/ST",
-    team: "BAL",
-    position: "DST",
-    projection: 9.1,
-    matchup: "@ CLE",
-  },
-  tucker: {
-    id: "tucker",
-    name: "Justin Tucker",
-    team: "BAL",
+  {
     position: "K",
-    projection: 8.4,
-    matchup: "@ CLE",
-    headshotUrl: getNflHeadshot(15683),
+    left: { name: "E. McPherson", meta: "CIN · vs LAR", points: "8.0", initials: "EM" },
+    right: { name: "T. Tucker", meta: "BAL · vs PIT", points: "6.0", initials: "TT" },
   },
-  tyreek: {
-    id: "tyreek",
-    name: "Tyreek Hill",
-    team: "MIA",
-    position: "WR",
-    projection: 19.2,
-    matchup: "@ BUF",
-    headshotUrl: getNflHeadshot(3116406),
+  {
+    position: "DEF",
+    left: { name: "SF Defense", meta: "at SEA", points: "8.0", initials: "DEF" },
+    right: { name: "BUF Defense", meta: "at MIA", points: "16.4", initials: "DEF" },
   },
-  saquon: {
-    id: "saquon",
-    name: "Saquon Barkley",
-    team: "PHI",
-    position: "RB",
-    projection: 17.1,
-    matchup: "vs DAL",
-    headshotUrl: getNflHeadshot(3929630),
-  },
-  amonra: {
-    id: "amonra",
-    name: "Amon-Ra St. Brown",
-    team: "DET",
-    position: "WR",
-    projection: 18.9,
-    matchup: "vs GB",
-    headshotUrl: getNflHeadshot(4374302),
-  },
-  breece: {
-    id: "breece",
-    name: "Breece Hall",
-    team: "NYJ",
-    position: "RB",
-    projection: 16.2,
-    matchup: "@ NE",
-    headshotUrl: getNflHeadshot(4427366),
-  },
-  laporta: {
-    id: "laporta",
-    name: "Sam LaPorta",
-    team: "DET",
-    position: "TE",
-    projection: 13.2,
-    matchup: "vs GB",
-    headshotUrl: getNflHeadshot(4430027),
-  },
-  hurts: {
-    id: "hurts",
-    name: "Jalen Hurts",
-    team: "PHI",
-    position: "QB",
-    projection: 24.1,
-    matchup: "vs DAL",
-    headshotUrl: getNflHeadshot(4040715),
-  },
-  niners_dst: {
-    id: "niners_dst",
-    name: "49ers D/ST",
-    team: "SF",
-    position: "DST",
-    projection: 8.7,
-    matchup: "vs SEA",
-  },
-  butker: {
-    id: "butker",
-    name: "Harrison Butker",
-    team: "KC",
-    position: "K",
-    projection: 8.1,
-    matchup: "vs LV",
-    headshotUrl: getNflHeadshot(3055899),
-  },
-};
-
-const INITIAL_SLOTS: LineupSlot[] = [
-  { id: "QB", label: "QB", allowed: ["QB"], playerId: "josh_allen" },
-  { id: "RB1", label: "RB", allowed: ["RB"], playerId: "cmc" },
-  { id: "RB2", label: "RB", allowed: ["RB"], playerId: "bijan" },
-  { id: "WR1", label: "WR", allowed: ["WR"], playerId: "jefferson" },
-  { id: "WR2", label: "WR", allowed: ["WR"], playerId: "chase" },
-  { id: "TE", label: "TE", allowed: ["TE"], playerId: "kelce" },
-  { id: "FLEX", label: "FLEX", allowed: ["RB", "WR", "TE"], playerId: "puka" },
-  { id: "DST", label: "DST", allowed: ["DST"], playerId: "ravens_dst" },
-  { id: "K", label: "K", allowed: ["K"], playerId: "tucker" },
 ];
 
-const INITIAL_BENCH: string[] = [
-  "tyreek",
-  "amonra",
-  "saquon",
-  "breece",
-  "laporta",
-  "hurts",
-  "niners_dst",
-  "butker",
+const BENCH: MatchupRow[] = [
+  {
+    position: "RB",
+    bench: true,
+    left: { name: "D. Henry", meta: "TEN · vs JAX", points: "6.2", initials: "DH", bench: true },
+    right: { name: "C. Lamb", meta: "DAL · at NYG · O", points: "0.0", initials: "CL", injury: "O", bench: true },
+  },
+  {
+    position: "WR",
+    bench: true,
+    left: { name: "A. Cooper", meta: "CLE · at DEN", points: "4.8", initials: "AC", bench: true },
+    right: { name: "K. Allen", meta: "LAC · at IND", points: "7.3", initials: "KA", bench: true },
+  },
 ];
 
-const OPPONENT_PROJECTION = 152.8;
+function TeamPlayerCard({ side, player }: { side: "left" | "right"; player: SidePlayer }) {
+  const isLeft = side === "left";
+  const isZero = player.points === "0.0";
+  return (
+    <View
+      style={[
+        styles.playerCard,
+        isLeft ? styles.playerCardLeft : styles.playerCardRight,
+        player.scoring ? styles.playerCardScoring : null,
+        player.bench ? styles.playerCardBench : null,
+      ]}
+    >
+      <Text style={[styles.playerPoints, isZero ? styles.playerPointsZero : isLeft ? styles.playerPointsGreen : styles.playerPointsBlue]}>
+        {player.points}
+      </Text>
 
-function buildSignature(slots: LineupSlot[], bench: string[]) {
-  return `${slots.map((slot) => `${slot.id}:${slot.playerId}`).join("|")}::${bench.join("|")}`;
+      <View style={styles.playerInfo}>
+        <Text style={styles.playerName}>
+          {player.name}
+        </Text>
+        <Text style={styles.playerMeta}>
+          {player.meta}
+        </Text>
+      </View>
+
+      <View style={[styles.playerAvatar, isLeft ? styles.avatarGreen : styles.avatarBlue, player.bench ? styles.avatarGray : null]}>
+        <Text style={[styles.playerAvatarText, player.bench ? styles.avatarGrayText : null]}>{player.initials}</Text>
+        {player.injury ? (
+          <View style={[styles.injuryDot, player.injury === "Q" ? styles.injuryQuestionable : styles.injuryOut]} />
+        ) : null}
+      </View>
+    </View>
+  );
 }
 
-function getInitials(playerName: string) {
-  const parts = playerName.split(" ");
-  const first = parts[0]?.[0] ?? "";
-  const last = parts[parts.length - 1]?.[0] ?? "";
-  return `${first}${last}`.toUpperCase();
+function MatchupLine({ row }: { row: MatchupRow }) {
+  return (
+    <View style={styles.matchupRow}>
+      <TeamPlayerCard side="left" player={row.left} />
+      <View style={[styles.positionPill, row.bench ? styles.positionPillBench : null]}>
+        <Text style={[styles.positionPillText, row.bench ? styles.positionPillTextBench : null]}>{row.position}</Text>
+      </View>
+      <TeamPlayerCard side="right" player={row.right} />
+    </View>
+  );
 }
 
 export default function LineupDemoScreen() {
-  const theme = useDemoTheme();
-  const { completeFeature, addSeasonProgress } = useInvestorDemo();
-  const [slots, setSlots] = useState<LineupSlot[]>(INITIAL_SLOTS);
-  const [bench, setBench] = useState<string[]>(INITIAL_BENCH);
-  const [swapSheet, setSwapSheet] = useState<SwapModalState>({ visible: false });
-  const [message, setMessage] = useState<string>(
-    "Tap any starter or bench player to open quick swap options."
-  );
-  const [failedHeadshots, setFailedHeadshots] = useState<Set<string>>(new Set());
-  const [submittedSignature, setSubmittedSignature] = useState<string>(
-    buildSignature(INITIAL_SLOTS, INITIAL_BENCH)
-  );
-
-  const lineupSignature = useMemo(() => buildSignature(slots, bench), [slots, bench]);
-  const isDirty = lineupSignature !== submittedSignature;
-
-  const starterProjection = useMemo(
-    () => slots.reduce((sum, slot) => sum + PLAYERS[slot.playerId].projection, 0),
-    [slots]
-  );
-  const delta = starterProjection - OPPONENT_PROJECTION;
-  const winProb = Math.max(5, Math.min(95, 50 + delta * 2.1));
-
-  const closeSwapSheet = useCallback(() => {
-    setSwapSheet({ visible: false });
-  }, []);
-
-  const swapIntoSlot = useCallback(
-    (benchPlayerId: string, slotId: SlotId) => {
-      const targetSlot = slots.find((slot) => slot.id === slotId);
-      if (!targetSlot) return;
-
-      const benchPlayer = PLAYERS[benchPlayerId];
-      if (!targetSlot.allowed.includes(benchPlayer.position)) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-        setMessage(`${benchPlayer.name} is not eligible for ${targetSlot.label}.`);
-        return;
-      }
-
-      const outgoingStarterId = targetSlot.playerId;
-
-      setSlots((prev) =>
-        prev.map((slot) => (slot.id === slotId ? { ...slot, playerId: benchPlayerId } : slot))
-      );
-      setBench((prev) =>
-        prev.map((playerId) => (playerId === benchPlayerId ? outgoingStarterId : playerId))
-      );
-      setMessage(`${benchPlayer.name} moved to ${targetSlot.label}.`);
-      closeSwapSheet();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    },
-    [closeSwapSheet, slots]
-  );
-
-  const starterSwapOptions = useMemo(() => {
-    if (!swapSheet.visible || swapSheet.source !== "starter" || !swapSheet.slotId) return [];
-    const targetSlot = slots.find((slot) => slot.id === swapSheet.slotId);
-    if (!targetSlot) return [];
-    return bench
-      .map((benchId) => PLAYERS[benchId])
-      .filter((player) => targetSlot.allowed.includes(player.position));
-  }, [bench, slots, swapSheet]);
-
-  const benchSwapOptions = useMemo(() => {
-    if (!swapSheet.visible || swapSheet.source !== "bench" || !swapSheet.benchPlayerId) return [];
-    const benchPlayer = PLAYERS[swapSheet.benchPlayerId];
-    return slots.filter((slot) => slot.allowed.includes(benchPlayer.position));
-  }, [slots, swapSheet]);
-
-  const onStarterPress = useCallback((slotId: SlotId) => {
-    setSwapSheet({ visible: true, source: "starter", slotId });
-    setMessage("Choose a bench player from the sheet to swap in.");
-  }, []);
-
-  const onBenchPress = useCallback((benchPlayerId: string) => {
-    setSwapSheet({ visible: true, source: "bench", benchPlayerId });
-    setMessage("Choose a starter slot from the sheet to swap with this bench player.");
-  }, []);
-
-  const onSubmitLineup = () => {
-    setSubmittedSignature(lineupSignature);
-    setMessage(`Lineup submitted. Projected ${starterProjection.toFixed(1)} points for Week 1.`);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    closeSwapSheet();
-    addSeasonProgress(40, 8, "nfl");
-    completeFeature("lineup");
-  };
-
-  const activeStarterSlotId =
-    swapSheet.visible && swapSheet.source === "starter" ? swapSheet.slotId ?? null : null;
-  const activeBenchPlayerId =
-    swapSheet.visible && swapSheet.source === "bench" ? swapSheet.benchPlayerId ?? null : null;
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   return (
-    <DemoModuleScaffold
-      title="Set Lineup"
-      subtitle="Manage starters and bench like a real fantasy football lineup, then lock it in."
-      moduleIntroKey="lineup"
-      footer={
-        <View style={styles.footerStack}>
-          {isDirty ? (
-            <View style={[styles.floatingSubmitWrap, { borderColor: `${theme.primary}66`, backgroundColor: theme.surfaceElevated }]}>
-              <TouchableOpacity
-                onPress={onSubmitLineup}
-                activeOpacity={0.9}
-                style={[styles.floatingSubmitButton, { backgroundColor: theme.primary }]}
-              >
-                <MaterialIcons name="check-circle" size={18} color={theme.appBackground} />
-                <Text style={[styles.floatingSubmitText, { color: theme.appBackground, fontFamily: theme.buttonFont }]}>
-                  Submit Lineup Changes
-                </Text>
-              </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+      <View style={styles.root}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 96 + Math.max(insets.bottom, 12) }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.statusBar}>
+            <Text style={styles.statusTime}>9:41</Text>
+            <View style={styles.statusRight}>
+              <View style={styles.signalBars}>
+                <View style={[styles.signalBar, { height: 4 }]} />
+                <View style={[styles.signalBar, { height: 6 }]} />
+                <View style={[styles.signalBar, { height: 9 }]} />
+                <View style={[styles.signalBar, { height: 12 }]} />
+              </View>
+              <MaterialIcons name="wifi" size={14} color="#f0f0f0" />
+              <View style={styles.battery}>
+                <View style={styles.batteryFill} />
+              </View>
             </View>
-          ) : null}
-          <FeatureFooter featureId="lineup" showHomeCta={false} />
-        </View>
-      }
-    >
-      <LinearGradient
-        colors={[`${theme.primary}36`, `${theme.primary}12`]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.heroCard, { borderColor: `${theme.primary}55` }]}
-      >
-        <View style={styles.heroTopRow}>
-          <Text style={[styles.heroTitle, { color: theme.textPrimary, fontFamily: theme.displayFont }]}>
-            Week 1 vs Gridiron Kings
-          </Text>
-          <View style={[styles.lockPill, { borderColor: `${theme.primary}66`, backgroundColor: `${theme.primary}1C` }]}>
-            <MaterialIcons name="timer" size={14} color={theme.primaryLight} />
-            <Text style={[styles.lockPillText, { color: theme.primaryLight, fontFamily: theme.labelFont }]}>
-              Lock in 22m
-            </Text>
           </View>
-        </View>
-        <View style={styles.heroStatsRow}>
-          <View style={[styles.heroStat, { borderColor: `${theme.primary}35`, backgroundColor: theme.glass }]}>
-            <Text style={[styles.heroStatLabel, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>Your Projection</Text>
-            <Text style={[styles.heroStatValue, { color: theme.textPrimary, fontFamily: theme.displayFont }]}>
-              {starterProjection.toFixed(1)}
-            </Text>
-          </View>
-          <View style={[styles.heroStat, { borderColor: `${theme.primary}35`, backgroundColor: theme.glass }]}>
-            <Text style={[styles.heroStatLabel, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>Opponent</Text>
-            <Text style={[styles.heroStatValue, { color: theme.textPrimary, fontFamily: theme.displayFont }]}>
-              {OPPONENT_PROJECTION.toFixed(1)}
-            </Text>
-          </View>
-          <View style={[styles.heroStat, { borderColor: `${theme.primary}35`, backgroundColor: theme.glass }]}>
-            <Text style={[styles.heroStatLabel, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>Win Odds</Text>
-            <Text style={[styles.heroStatValue, { color: theme.primaryLight, fontFamily: theme.displayFont }]}>
-              {winProb.toFixed(0)}%
-            </Text>
-          </View>
-        </View>
-      </LinearGradient>
 
-      <View style={[styles.messageCard, { borderColor: `${theme.primary}30`, backgroundColor: theme.surfaceElevated }]}>
-        <MaterialIcons name="touch-app" size={16} color={theme.primaryLight} />
-        <Text style={[styles.messageText, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>{message}</Text>
-      </View>
-
-      <View style={[styles.sectionCard, { borderColor: `${theme.primary}35`, backgroundColor: theme.surfaceElevated }]}>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.textPrimary, fontFamily: theme.displayFont }]}>Starters</Text>
-          <Text style={[styles.sectionMeta, { color: theme.textSecondary, fontFamily: theme.labelFont }]}>9/9 Active</Text>
-        </View>
-
-        <View style={styles.rowsWrap}>
-          {slots.map((slot) => {
-            const player = PLAYERS[slot.playerId];
-            const showHeadshot = !!player.headshotUrl && !failedHeadshots.has(player.id);
-            return (
-              <TouchableOpacity
-                key={slot.id}
-                onPress={() => onStarterPress(slot.id)}
-                activeOpacity={0.9}
-                style={[
-                  styles.playerRow,
-                  {
-                    borderColor: `${theme.primary}30`,
-                    backgroundColor: theme.glass,
-                  },
-                ]}
-              >
-                <View style={styles.playerRowLeft}>
-                  <View style={[styles.slotBadge, { borderColor: `${theme.primary}55`, backgroundColor: `${theme.primary}16` }]}>
-                    <Text style={[styles.slotBadgeText, { color: theme.primaryLight, fontFamily: theme.labelFont }]}>{slot.label}</Text>
-                  </View>
-                  <View style={[styles.avatarCircle, { backgroundColor: `${theme.primary}20`, borderColor: `${theme.primary}40` }]}>
-                    {showHeadshot ? (
-                      <Image
-                        source={{ uri: player.headshotUrl }}
-                        resizeMode="cover"
-                        style={styles.avatarImage}
-                        onError={() =>
-                          setFailedHeadshots((prev) => {
-                            if (prev.has(player.id)) return prev;
-                            const next = new Set(prev);
-                            next.add(player.id);
-                            return next;
-                          })
-                        }
-                      />
-                    ) : (
-                      <Text style={[styles.avatarInitials, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>
-                        {getInitials(player.name)}
-                      </Text>
-                    )}
-                  </View>
-                  <View style={styles.playerInfo}>
-                    <Text style={[styles.playerName, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>{player.name}</Text>
-                    <Text style={[styles.playerMeta, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>
-                      {player.team} • {player.position} • {player.matchup}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={[styles.projectionText, { color: theme.primaryLight, fontFamily: theme.labelFont }]}>
-                  {player.projection.toFixed(1)}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-
-      <View style={[styles.sectionCard, { borderColor: `${theme.primary}35`, backgroundColor: theme.surfaceElevated }]}>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.textPrimary, fontFamily: theme.displayFont }]}>Bench</Text>
-          <Text style={[styles.sectionMeta, { color: theme.textSecondary, fontFamily: theme.labelFont }]}>8 Players</Text>
-        </View>
-
-        <View style={styles.rowsWrap}>
-          {bench.map((playerId) => {
-            const player = PLAYERS[playerId];
-            const showHeadshot = !!player.headshotUrl && !failedHeadshots.has(player.id);
-            return (
-              <TouchableOpacity
-                key={player.id}
-                onPress={() => onBenchPress(player.id)}
-                activeOpacity={0.9}
-                style={[
-                  styles.playerRow,
-                  {
-                    borderColor: `${theme.primary}30`,
-                    backgroundColor: theme.glass,
-                  },
-                ]}
-              >
-                <View style={styles.playerRowLeft}>
-                  <View style={[styles.slotBadge, { borderColor: `${theme.primary}40`, backgroundColor: theme.glass }]}>
-                    <Text style={[styles.slotBadgeText, { color: theme.textSecondary, fontFamily: theme.labelFont }]}>BN</Text>
-                  </View>
-                  <View style={[styles.avatarCircle, { backgroundColor: `${theme.primary}20`, borderColor: `${theme.primary}40` }]}>
-                    {showHeadshot ? (
-                      <Image
-                        source={{ uri: player.headshotUrl }}
-                        resizeMode="cover"
-                        style={styles.avatarImage}
-                        onError={() =>
-                          setFailedHeadshots((prev) => {
-                            if (prev.has(player.id)) return prev;
-                            const next = new Set(prev);
-                            next.add(player.id);
-                            return next;
-                          })
-                        }
-                      />
-                    ) : (
-                      <Text style={[styles.avatarInitials, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>
-                        {getInitials(player.name)}
-                      </Text>
-                    )}
-                  </View>
-                  <View style={styles.playerInfo}>
-                    <Text style={[styles.playerName, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>{player.name}</Text>
-                    <Text style={[styles.playerMeta, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>
-                      {player.team} • {player.position} • {player.matchup}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={[styles.projectionText, { color: theme.primaryLight, fontFamily: theme.labelFont }]}>
-                  {player.projection.toFixed(1)}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-
-      <Modal
-        visible={swapSheet.visible}
-        transparent
-        animationType="slide"
-        onRequestClose={closeSwapSheet}
-      >
-        <View style={styles.sheetOverlay}>
-          <TouchableOpacity style={styles.sheetBackdrop} onPress={closeSwapSheet} activeOpacity={1} />
-          <View style={[styles.sheetContainer, { borderColor: `${theme.primary}4A`, backgroundColor: theme.surface }]}>
-            <View style={styles.sheetHandleWrap}>
-              <View style={[styles.sheetHandle, { backgroundColor: `${theme.primary}55` }]} />
-            </View>
-            <Text style={[styles.sheetTitle, { color: theme.textPrimary, fontFamily: theme.displayFont }]}>
-              {swapSheet.visible && swapSheet.source === "starter"
-                ? "Swap In From Bench"
-                : "Swap Into Starter Slot"}
-            </Text>
-            <Text style={[styles.sheetSubtitle, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>
-              {swapSheet.visible && swapSheet.source === "starter"
-                ? "Pick a bench player to move into this starter slot."
-                : "Pick a starter slot for this bench player."}
-            </Text>
-
-            <View style={styles.sheetOptionsWrap}>
-              {swapSheet.visible && swapSheet.source === "starter" ? (
-                starterSwapOptions.length > 0 ? (
-                  starterSwapOptions.map((option) => {
-                    const showHeadshot = !!option.headshotUrl && !failedHeadshots.has(option.id);
-                    return (
-                      <TouchableOpacity
-                        key={`starter-opt-${option.id}`}
-                        onPress={() => activeStarterSlotId && swapIntoSlot(option.id, activeStarterSlotId)}
-                        activeOpacity={0.9}
-                        style={[styles.sheetOptionRow, { borderColor: `${theme.primary}33`, backgroundColor: theme.glass }]}
-                      >
-                        <View style={[styles.avatarCircle, { backgroundColor: `${theme.primary}20`, borderColor: `${theme.primary}40` }]}>
-                          {showHeadshot ? (
-                            <Image
-                              source={{ uri: option.headshotUrl }}
-                              resizeMode="cover"
-                              style={styles.avatarImage}
-                              onError={() =>
-                                setFailedHeadshots((prev) => {
-                                  if (prev.has(option.id)) return prev;
-                                  const next = new Set(prev);
-                                  next.add(option.id);
-                                  return next;
-                                })
-                              }
-                            />
-                          ) : (
-                            <Text style={[styles.avatarInitials, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>
-                              {getInitials(option.name)}
-                            </Text>
-                          )}
-                        </View>
-                        <View style={styles.sheetOptionInfo}>
-                          <Text style={[styles.sheetOptionName, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>
-                            {option.name}
-                          </Text>
-                          <Text style={[styles.sheetOptionMeta, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>
-                            {option.team} • {option.position} • {option.matchup}
-                          </Text>
-                        </View>
-                        <Text style={[styles.sheetProjection, { color: theme.primaryLight, fontFamily: theme.labelFont }]}>
-                          {option.projection.toFixed(1)}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })
-                ) : (
-                  <Text style={[styles.sheetEmptyText, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>
-                    No eligible bench players for this slot.
-                  </Text>
-                )
-              ) : benchSwapOptions.length > 0 && activeBenchPlayerId ? (
-                benchSwapOptions.map((option) => {
-                  const currentStarter = PLAYERS[option.playerId];
-                  return (
-                    <TouchableOpacity
-                      key={`bench-opt-${option.id}`}
-                      onPress={() => swapIntoSlot(activeBenchPlayerId, option.id)}
-                      activeOpacity={0.9}
-                      style={[styles.sheetOptionRow, { borderColor: `${theme.primary}33`, backgroundColor: theme.glass }]}
-                    >
-                      <View style={[styles.slotBadge, { borderColor: `${theme.primary}55`, backgroundColor: `${theme.primary}16` }]}>
-                        <Text style={[styles.slotBadgeText, { color: theme.primaryLight, fontFamily: theme.labelFont }]}>
-                          {option.label}
-                        </Text>
-                      </View>
-                      <View style={styles.sheetOptionInfo}>
-                        <Text style={[styles.sheetOptionName, { color: theme.textPrimary, fontFamily: theme.labelFont }]}>
-                          Replace {currentStarter.name}
-                        </Text>
-                        <Text style={[styles.sheetOptionMeta, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>
-                          {currentStarter.team} • {currentStarter.position} • {currentStarter.matchup}
-                        </Text>
-                      </View>
-                      <MaterialIcons name="swap-vert" size={18} color={theme.primaryLight} />
-                    </TouchableOpacity>
-                  );
-                })
-              ) : (
-                <Text style={[styles.sheetEmptyText, { color: theme.textSecondary, fontFamily: theme.bodyFont }]}>
-                  No eligible starter slots for this bench player.
-                </Text>
-              )}
-            </View>
-
+          <View style={styles.topHeader}>
             <TouchableOpacity
-              onPress={closeSwapSheet}
-              activeOpacity={0.9}
-              style={[styles.sheetCancelButton, { borderColor: `${theme.primary}40`, backgroundColor: theme.glass }]}
+              style={styles.backBtn}
+              activeOpacity={0.85}
+              onPress={() => router.replace("/(investor-demo)/home-v2" as any)}
             >
-              <Text style={[styles.sheetCancelText, { color: theme.textPrimary, fontFamily: theme.buttonFont }]}>
-                Cancel
-              </Text>
+              <Text style={styles.backBtnText}>‹</Text>
             </TouchableOpacity>
+            <View style={styles.liveBadge}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveBadgeText}>LIVE · WEEK 14</Text>
+            </View>
+          </View>
+
+          <View style={styles.matchupHero}>
+            <View style={styles.heroTeams}>
+              <View style={styles.teamSideLeft}>
+                <View style={styles.characterGlowLeft} />
+                <Image source={LEFT_CHARACTER} resizeMode="contain" style={styles.characterImage} />
+              </View>
+
+              <View style={styles.heroCenter}>
+                <Text style={styles.vsBadge}>VS</Text>
+                <Text style={styles.timerBadge}>Q3 · 8:42</Text>
+              </View>
+
+              <View style={styles.teamSideRight}>
+                <View style={styles.characterGlowRight} />
+                <Image source={RIGHT_CHARACTER} resizeMode="contain" style={styles.characterImage} />
+              </View>
+            </View>
+
+            <View style={styles.scoreBar}>
+              <View style={styles.scoreTeam}>
+                <Text style={[styles.teamName, styles.teamNameGreen]}>VENOM FC</Text>
+                <Text style={styles.ownerName}>Marcus · LVL 12</Text>
+              </View>
+              <View style={styles.scoreCenter}>
+                <Text style={styles.scoreValue}>142.6</Text>
+                <View style={styles.scoreDot} />
+                <Text style={styles.scoreValue}>118.4</Text>
+              </View>
+              <View style={[styles.scoreTeam, styles.scoreTeamRight]}>
+                <Text style={[styles.teamName, styles.teamNameBlue]}>BLITZ KINGS</Text>
+                <Text style={styles.ownerName}>Jordan · LVL 9</Text>
+              </View>
+            </View>
+
+            <View style={styles.projectedRow}>
+              <Text style={styles.projectedLabel}>
+                Proj: <Text style={styles.projectedValueLeading}>168.3</Text>
+              </Text>
+              <Text style={styles.projectedLead}>▲ +24.2 lead</Text>
+              <Text style={styles.projectedLabel}>
+                Proj: <Text style={styles.projectedValue}>152.1</Text>
+              </Text>
+            </View>
+
+            <View style={styles.probabilityWrap}>
+              <View style={styles.probabilityLabels}>
+                <Text style={styles.probabilityLeft}>62%</Text>
+                <Text style={styles.probabilityCenter}>Win Probability</Text>
+                <Text style={styles.probabilityRight}>38%</Text>
+              </View>
+              <View style={styles.probabilityBar}>
+                <View style={styles.probabilityFillGreen} />
+                <View style={styles.probabilityFillBlue} />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.scoringToast}>
+            <Text style={styles.toastIcon}>⚡</Text>
+            <Text style={styles.toastText}>J. Jefferson caught 34-yd TD</Text>
+            <Text style={styles.toastPoints}>+6.0</Text>
+          </View>
+
+          <View style={styles.sectionLabel}>
+            <View style={styles.sectionLine} />
+            <Text style={styles.sectionText}>Starting Lineup</Text>
+            <View style={styles.sectionLine} />
+          </View>
+
+          {STARTERS.map((row, idx) => (
+            <MatchupLine key={`starter-${idx}-${row.position}`} row={row} />
+          ))}
+
+          <View style={styles.benchLabel}>
+            <View style={styles.sectionLine} />
+            <Text style={[styles.sectionText, styles.benchText]}>Bench</Text>
+            <View style={styles.sectionLine} />
+          </View>
+
+          {BENCH.map((row, idx) => (
+            <MatchupLine key={`bench-${idx}-${row.position}`} row={row} />
+          ))}
+        </ScrollView>
+
+        <View style={[styles.bottomNavWrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+          <View style={styles.bottomNav}>
+            <View style={styles.navItem}>
+              <MaterialIcons name="home" size={20} color="#6b7280" />
+              <Text style={styles.navLabel}>Home</Text>
+            </View>
+            <View style={styles.navItem}>
+              <MaterialIcons name="flag" size={20} color="#3ab298" />
+              <Text style={[styles.navLabel, styles.navLabelActive]}>Leagues</Text>
+            </View>
+            <View style={styles.navItem}>
+              <MaterialIcons name="explore" size={20} color="#6b7280" />
+              <Text style={styles.navLabel}>Explore</Text>
+            </View>
+            <View style={styles.navItem}>
+              <MaterialIcons name="diamond" size={20} color="#6b7280" />
+              <Text style={styles.navLabel}>Avatar</Text>
+            </View>
+            <View style={styles.navItem}>
+              <MaterialIcons name="person" size={20} color="#6b7280" />
+              <Text style={styles.navLabel}>Profile</Text>
+            </View>
           </View>
         </View>
-      </Modal>
-    </DemoModuleScaffold>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  heroCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
-    gap: 10,
+  safeArea: { flex: 1, backgroundColor: "#0e1014" },
+  root: { flex: 1 },
+  scroll: { flex: 1, backgroundColor: "#0e1014" },
+  scrollContent: { paddingTop: 4, paddingBottom: 20 },
+
+  statusBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 28,
+    paddingTop: 8,
   },
-  heroTopRow: {
+  statusTime: { color: "#f0f0f0", fontSize: 13, fontWeight: "600", letterSpacing: 0.2 },
+  statusRight: { flexDirection: "row", alignItems: "center", gap: 6 },
+  signalBars: { flexDirection: "row", alignItems: "flex-end", height: 12, gap: 2 },
+  signalBar: { width: 3, borderRadius: 1, backgroundColor: "#f0f0f0" },
+  battery: { width: 22, height: 12, borderRadius: 3, borderWidth: 1.5, borderColor: "#f0f0f0", padding: 1.5, justifyContent: "center" },
+  batteryFill: { width: "75%", height: "100%", backgroundColor: "#f0f0f0", borderRadius: 1 },
+
+  topHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 8,
   },
-  heroTitle: {
-    fontSize: 17,
-    fontWeight: "900",
-  },
-  lockPill: {
-    borderRadius: 999,
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 1,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "#13161c",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backBtnText: {
+    color: "#9ca3af",
+    fontSize: 22,
+    lineHeight: 22,
+    marginTop: -1,
+  },
+  liveBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-  },
-  lockPillText: {
-    fontSize: 10,
-    fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 0.24,
-  },
-  heroStatsRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  heroStat: {
-    flex: 1,
-    borderRadius: 10,
+    gap: 6,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderWidth: 1,
-    paddingHorizontal: 9,
-    paddingVertical: 8,
+    borderColor: "rgba(239,68,68,0.3)",
+    backgroundColor: "rgba(239,68,68,0.14)",
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#ef4444" },
+  liveBadgeText: { color: "#f87171", fontSize: 10, fontWeight: "800", letterSpacing: 0.9 },
+
+  matchupHero: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+    marginBottom: 8,
+    backgroundColor: "#13161c",
+    paddingTop: 6,
+  },
+  heroTeams: {
+    height: 242,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    overflow: "hidden",
+    position: "relative",
+  },
+  teamSideLeft: {
+    width: 150,
+    height: 236,
+    alignItems: "flex-start",
+    justifyContent: "flex-end",
+    paddingLeft: 2,
+    position: "relative",
+  },
+  teamSideRight: {
+    width: 150,
+    height: 236,
+    alignItems: "flex-end",
+    justifyContent: "flex-end",
+    paddingRight: 2,
+    position: "relative",
+  },
+  characterGlowLeft: {
+    position: "absolute",
+    bottom: 0,
+    left: -30,
+    width: 200,
+    height: 200,
+    borderRadius: 200,
+    backgroundColor: "rgba(127,255,95,0.14)",
+  },
+  characterGlowRight: {
+    position: "absolute",
+    bottom: 0,
+    right: -30,
+    width: 200,
+    height: 200,
+    borderRadius: 200,
+    backgroundColor: "rgba(0,212,255,0.12)",
+  },
+  characterImage: {
+    width: 142,
+    height: 216,
+  },
+  heroCenter: {
+    position: "absolute",
+    left: "50%",
+    bottom: 24,
+    transform: [{ translateX: -28 }],
+    alignItems: "center",
     gap: 2,
   },
-  heroStatLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  heroStatValue: {
-    fontSize: 18,
-    fontWeight: "900",
-  },
-  messageCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 7,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  messageText: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: "600",
-    lineHeight: 17,
-  },
-  sectionCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 12,
-    gap: 10,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "900",
-  },
-  sectionMeta: {
-    fontSize: 11,
+  vsBadge: {
+    color: "#f0f0f0",
+    fontSize: 28,
     fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 0.24,
+    letterSpacing: 1,
   },
-  rowsWrap: {
-    gap: 8,
-  },
-  playerRow: {
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 9,
-  },
-  playerRowLeft: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  slotBadge: {
-    minWidth: 42,
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  slotBadgeText: {
+  timerBadge: {
+    color: "#9ca3af",
     fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.2,
+    fontWeight: "700",
+    letterSpacing: 1.2,
     textTransform: "uppercase",
   },
-  avatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: "hidden",
+
+  scoreBar: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.05)",
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarImage: {
-    width: "100%",
-    height: "100%",
-  },
-  avatarInitials: {
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  playerInfo: {
-    flex: 1,
-    gap: 1,
-  },
-  playerName: {
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  playerMeta: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  projectionText: {
-    fontSize: 16,
-    fontWeight: "900",
-    minWidth: 40,
-    textAlign: "right",
-  },
-  footerStack: {
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: "#13161c",
     gap: 10,
   },
-  floatingSubmitWrap: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 8,
-  },
-  floatingSubmitButton: {
-    minHeight: 48,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  floatingSubmitText: {
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  ctaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  secondaryButton: {
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingVertical: 13,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 14,
-  },
-  secondaryButtonText: {
-    fontSize: 13,
-    fontWeight: "800",
-  },
-  submitButton: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingVertical: 13,
-    paddingHorizontal: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-  },
-  submitButtonText: {
+  scoreTeam: { gap: 2, width: 96 },
+  scoreTeamRight: { alignItems: "flex-end" },
+  teamName: {
     fontSize: 15,
-    fontWeight: "900",
+    fontWeight: "800",
+    letterSpacing: 0.9,
   },
-  sheetOverlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(5, 10, 18, 0.45)",
-  },
-  sheetBackdrop: {
-    flex: 1,
-  },
-  sheetContainer: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    paddingHorizontal: 14,
-    paddingTop: 8,
-    paddingBottom: 20,
-    gap: 10,
-    maxHeight: "72%",
-  },
-  sheetHandleWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 4,
-  },
-  sheetHandle: {
-    width: 48,
-    height: 5,
-    borderRadius: 999,
-  },
-  sheetTitle: {
-    fontSize: 24,
-    fontWeight: "900",
-    lineHeight: 26,
-  },
-  sheetSubtitle: {
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: "600",
-  },
-  sheetOptionsWrap: {
-    gap: 8,
-  },
-  sheetOptionRow: {
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
+  teamNameGreen: { color: "#7fff5f" },
+  teamNameBlue: { color: "#00d4ff" },
+  ownerName: { color: "#6b7280", fontSize: 10, fontWeight: "500", letterSpacing: 0.4 },
+  scoreCenter: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  scoreValue: { color: "#f0f0f0", fontSize: 26, fontWeight: "800", lineHeight: 26 },
+  scoreDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#6b7280" },
+
+  projectedRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+    backgroundColor: "rgba(26,30,39,0.65)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.05)",
   },
-  sheetOptionInfo: {
-    flex: 1,
-    gap: 1,
+  projectedLabel: {
+    color: "#6b7280",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
   },
-  sheetOptionName: {
-    fontSize: 13,
-    fontWeight: "800",
+  projectedValue: { color: "#9ca3af" },
+  projectedValueLeading: { color: "#3ab298" },
+  projectedLead: { color: "#3ab298", fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
+
+  probabilityWrap: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: "#13161c",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.05)",
   },
-  sheetOptionMeta: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  sheetProjection: {
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  sheetEmptyText: {
-    fontSize: 12,
-    fontWeight: "600",
-    lineHeight: 17,
-    paddingVertical: 8,
-  },
-  sheetCancelButton: {
-    minHeight: 44,
+  probabilityLabels: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
+  probabilityLeft: { color: "#3ab298", fontSize: 11, fontWeight: "800" },
+  probabilityCenter: { color: "#6b7280", fontSize: 10, fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase" },
+  probabilityRight: { color: "#00d4ff", fontSize: 11, fontWeight: "800" },
+  probabilityBar: { height: 4, borderRadius: 999, overflow: "hidden", backgroundColor: "#1a1e27", flexDirection: "row" },
+  probabilityFillGreen: { width: "62%", backgroundColor: "#3ab298" },
+  probabilityFillBlue: { flex: 1, backgroundColor: "#00d4ff" },
+
+  scoringToast: {
+    marginHorizontal: 12,
+    marginBottom: 10,
     borderRadius: 10,
     borderWidth: 1,
+    borderColor: "rgba(127,255,95,0.2)",
+    backgroundColor: "rgba(127,255,95,0.08)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  toastIcon: { fontSize: 14 },
+  toastText: { color: "#7fff5f", fontSize: 11, fontWeight: "700", flex: 1 },
+  toastPoints: { color: "#7fff5f", fontSize: 16, fontWeight: "800" },
+
+  sectionLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 10,
+  },
+  sectionLine: { flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.07)" },
+  sectionText: {
+    color: "#6b7280",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.3,
+    textTransform: "uppercase",
+  },
+  benchLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  benchText: { opacity: 0.7 },
+
+  matchupRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 0,
+    paddingHorizontal: 12,
+    marginBottom: 6,
+    minHeight: 54,
+  },
+  playerCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+    backgroundColor: "#13161c",
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minWidth: 0,
+  },
+  playerCardLeft: {
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+    borderRightWidth: 0,
+    flexDirection: "row-reverse",
+  },
+  playerCardRight: {
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+    borderLeftWidth: 0,
+  },
+  playerCardScoring: { borderColor: "rgba(127,255,95,0.22)" },
+  playerCardBench: { opacity: 0.58 },
+
+  playerAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 2,
+    borderWidth: 1,
+    position: "relative",
   },
-  sheetCancelText: {
-    fontSize: 13,
+  avatarGreen: { backgroundColor: "rgba(58,178,152,0.35)", borderColor: "rgba(127,255,95,0.35)" },
+  avatarBlue: { backgroundColor: "rgba(59,130,246,0.35)", borderColor: "rgba(0,212,255,0.35)" },
+  avatarGray: { backgroundColor: "#1a1e27", borderColor: "rgba(255,255,255,0.08)" },
+  playerAvatarText: { color: "#f0f0f0", fontSize: 12, fontWeight: "800", letterSpacing: -0.2 },
+  avatarGrayText: { color: "#6b7280" },
+  injuryDot: {
+    position: "absolute",
+    right: -1,
+    top: -1,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: "#0e1014",
+  },
+  injuryQuestionable: { backgroundColor: "#f59e0b" },
+  injuryOut: { backgroundColor: "#ef4444" },
+
+  playerInfo: { flex: 1, minWidth: 0 },
+  playerName: { color: "#f0f0f0", fontSize: 11, fontWeight: "800", letterSpacing: -0.05 },
+  playerMeta: { color: "#6b7280", fontSize: 9, fontWeight: "500" },
+  playerPoints: { fontSize: 16, fontWeight: "800", lineHeight: 16, minWidth: 36, textAlign: "center" },
+  playerPointsGreen: { color: "#7fff5f" },
+  playerPointsBlue: { color: "#00d4ff" },
+  playerPointsZero: { color: "#6b7280" },
+
+  positionPill: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#1a1e27",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  positionPillBench: { opacity: 0.45 },
+  positionPillText: {
+    color: "#9ca3af",
+    fontSize: 9,
     fontWeight: "800",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
   },
+  positionPillTextBench: { color: "#6b7280" },
+
+  bottomNavWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.07)",
+    backgroundColor: "rgba(19,22,28,0.97)",
+  },
+  bottomNav: { flexDirection: "row", paddingTop: 10 },
+  navItem: { flex: 1, alignItems: "center", gap: 4 },
+  navLabel: { color: "#6b7280", fontSize: 10, fontWeight: "600", letterSpacing: 0.3 },
+  navLabelActive: { color: "#3ab298" },
 });

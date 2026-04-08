@@ -1,8 +1,9 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
+  Animated,
   Image,
   ScrollView,
   StyleSheet,
@@ -147,6 +148,36 @@ function FlowItem({ flow }: { flow: FlowCard }) {
 }
 
 export default function InvestorDemoHomeV2Screen() {
+  const glowAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 1800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0,
+          duration: 1800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [glowAnim]);
+
+  const glowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.34, 0.66],
+  });
+  const glowScale = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.988, 1.015],
+  });
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <View style={styles.container}>
@@ -167,12 +198,21 @@ export default function InvestorDemoHomeV2Screen() {
           </View>
 
           <View style={styles.avatarSection}>
-            <View style={styles.avatarRing}>
-              <Image
-                source={HERO_IMAGE}
-                style={styles.avatarImage}
-                resizeMode="contain"
+            <View style={styles.avatarPulseWrap}>
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.avatarGlowHalo,
+                  { opacity: glowOpacity, transform: [{ scale: glowScale }] },
+                ]}
               />
+              <View style={styles.avatarRing}>
+                <Image
+                  source={HERO_IMAGE}
+                  style={styles.avatarImage}
+                  resizeMode="contain"
+                />
+              </View>
             </View>
             <View style={styles.levelBadge}>
               <View style={styles.levelDot} />
@@ -316,6 +356,24 @@ const styles = StyleSheet.create({
   avatarSection: {
     alignItems: "center",
     marginBottom: 10,
+  },
+  avatarPulseWrap: {
+    width: 220,
+    height: 300,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  avatarGlowHalo: {
+    position: "absolute",
+    width: 234,
+    height: 314,
+    borderRadius: 24,
+    backgroundColor: "rgba(58,178,152,0.12)",
+    shadowColor: "#3AB298",
+    shadowOpacity: 0.72,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 28,
   },
   avatarRing: {
     width: 220,

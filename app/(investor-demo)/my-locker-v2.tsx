@@ -755,6 +755,7 @@ export default function MyLockerV2Screen() {
   const [bwwError, setBwwError] = useState<string | null>(null);
   const [purchaseToast, setPurchaseToast] = useState<string | null>(null);
   const [isChainEquipped, setIsChainEquipped] = useState(false);
+  const glowAnim = useRef(new Animated.Value(0)).current;
 
   const gemCount = useMemo(() => state?.lifetimeGems ?? 640, [state?.lifetimeGems]);
   const canAffordBww = gemCount >= BWW_SKIN_COST;
@@ -831,6 +832,34 @@ export default function MyLockerV2Screen() {
       }
     };
   }, [purchaseToast, toastOpacity, toastTranslateY]);
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 1800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0,
+          duration: 1800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [glowAnim]);
+
+  const glowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.34, 0.66],
+  });
+  const glowScale = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.988, 1.015],
+  });
 
   const toastPanResponder = useMemo(
     () =>
@@ -951,18 +980,27 @@ export default function MyLockerV2Screen() {
         </View>
 
         <View style={styles.avatarSection}>
-          <LinearGradient
-            colors={["rgba(58,178,152,0.14)", "rgba(127,101,192,0.08)", "rgba(58,178,152,0.02)"]}
-            start={{ x: 0.2, y: 0.1 }}
-            end={{ x: 0.8, y: 1 }}
-            style={styles.avatarRing}
-          >
-            <Image source={avatarSource} style={styles.avatarImage} resizeMode="contain" />
-            <View style={styles.levelBadge}>
-              <View style={styles.levelDot} />
-              <Text style={styles.levelBadgeText}>LVL 12 · 3,420 XP</Text>
-            </View>
-          </LinearGradient>
+          <View style={styles.avatarPulseWrap}>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.avatarGlowHalo,
+                { opacity: glowOpacity, transform: [{ scale: glowScale }] },
+              ]}
+            />
+            <LinearGradient
+              colors={["rgba(58,178,152,0.14)", "rgba(127,101,192,0.08)", "rgba(58,178,152,0.02)"]}
+              start={{ x: 0.2, y: 0.1 }}
+              end={{ x: 0.8, y: 1 }}
+              style={styles.avatarRing}
+            >
+              <Image source={avatarSource} style={styles.avatarImage} resizeMode="contain" />
+              <View style={styles.levelBadge}>
+                <View style={styles.levelDot} />
+                <Text style={styles.levelBadgeText}>LVL 12 · 3,420 XP</Text>
+              </View>
+            </LinearGradient>
+          </View>
         </View>
 
         <View style={styles.tabsWrap}>
@@ -1299,6 +1337,24 @@ const styles = StyleSheet.create({
   avatarSection: {
     paddingHorizontal: 20,
     alignItems: "center",
+  },
+  avatarPulseWrap: {
+    width: 220,
+    height: 300,
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarGlowHalo: {
+    position: "absolute",
+    width: 234,
+    height: 314,
+    borderRadius: 24,
+    backgroundColor: "rgba(58,178,152,0.12)",
+    shadowColor: "#3AB298",
+    shadowOpacity: 0.72,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 0 },
   },
   avatarRing: {
     width: 220,

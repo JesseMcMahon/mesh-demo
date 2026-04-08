@@ -181,7 +181,14 @@ export default function SquadRecapScreen() {
                 <Text style={styles.spLbl}>Accuracy</Text>
               </View>
               <View style={styles.statPill}>
-                <Text style={[styles.spVal, styles.spAmber]}>+340</Text>
+                <Text
+                  style={[styles.spVal, styles.spAmber, styles.spValTight]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.78}
+                >
+                  +340
+                </Text>
                 <Text style={styles.spLbl}>XP Earned</Text>
               </View>
               <View style={styles.statPill}>
@@ -577,6 +584,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   spVal: { color: "#edf0f4", fontSize: 24, fontWeight: "800", lineHeight: 24 },
+  spValTight: {
+    width: "100%",
+    textAlign: "center",
+    includeFontPadding: false,
+  },
   spGreen: { color: "#34c99a" },
   spAmber: { color: "#e2b34a" },
   spPurple: { color: "#8b6fd4" },

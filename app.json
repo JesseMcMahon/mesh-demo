@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "bundleIdentifier": "com.hfs.huddle",
-      "buildNumber": "61",
+      "buildNumber": "62",
       "supportsTablet": false,
       "associatedDomains": [
         "applinks:hfs.app.link",

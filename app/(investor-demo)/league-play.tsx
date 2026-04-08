@@ -6,6 +6,7 @@ import type { ImageSourcePropType } from "react-native";
 import {
   Animated,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,6 +24,7 @@ const PRESENCE_BENCH = require("../../assets/demo-assets/presence/presence-avata
 const PRESENCE_DRAFTWIZ = require("../../assets/demo-assets/presence/presence-avatar-2.png");
 const PRESENCE_JAXON = require("../../assets/demo-assets/presence/presence-avatar-3.png");
 const PRESENCE_SLEEPER = require("../../assets/demo-assets/presence/presence-avatar-4.png");
+const TAUNT_JEFFERSON_GIF = require("../../assets/demo-assets/taunt-jefferson-td.gif");
 
 const LEAGUE_TABS: Array<{ id: LeagueTab; label: string }> = [
   { id: "home", label: "Home" },
@@ -419,6 +421,29 @@ const INITIAL_ROSTER_BENCH: RosterPlayer[] = [
   },
 ];
 
+const SLOT_START_CONFIDENCE: Record<string, number> = {
+  QB: 82,
+  RB1: 71,
+  RB2: 66,
+  WR1: 88,
+  WR2: 61,
+  FLEX: 57,
+  TE: 73,
+  DEF: 69,
+  K: 64,
+};
+
+const VOTE_MEMBERS: Array<{
+  id: string;
+  name: string;
+  avatar: ImageSourcePropType;
+}> = [
+  { id: "you", name: "You", avatar: LEFT_CHARACTER },
+  { id: "draftwiz", name: "DraftWiz", avatar: PRESENCE_DRAFTWIZ },
+  { id: "jaxon", name: "JaxonPlay", avatar: PRESENCE_JAXON },
+  { id: "benchboss", name: "BenchBoss", avatar: PRESENCE_BENCH },
+];
+
 function HomeTabContent() {
   const router = useRouter();
   const [activePlayerEmote, setActivePlayerEmote] = useState<string | null>(
@@ -697,6 +722,8 @@ function StatBlock({
 }
 
 function MatchupTabContent() {
+  const [isTauntPreviewOpen, setIsTauntPreviewOpen] = useState(false);
+
   return (
     <>
       <View style={styles.matchupHeroV2}>
@@ -780,12 +807,22 @@ function MatchupTabContent() {
       </View>
 
       <View style={styles.matchupTickerRow}>
-        <View style={styles.matchupTickerItem}>
-          <Text style={styles.matchupTickerTitle}>
-            ⚡ J. Jefferson 34-yd TD
-          </Text>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={styles.matchupTickerItem}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+            setIsTauntPreviewOpen(true);
+          }}
+        >
+          <View style={styles.matchupTickerTitleRow}>
+            <Text style={styles.matchupTickerTitle}>⚡ J. Jefferson 34-yd TD</Text>
+            <View style={styles.tauntChip}>
+              <Text style={styles.tauntChipText}>🗣 Taunt Now</Text>
+            </View>
+          </View>
           <Text style={styles.matchupTickerSub}>Scoring Play · 2:14 ago</Text>
-        </View>
+        </TouchableOpacity>
         <View style={styles.matchupTickerItem}>
           <Text style={styles.matchupTickerTitle}>🔒 Lineup Vote Locked</Text>
           <Text style={styles.matchupTickerSub}>Squad consensus applied</Text>
@@ -826,6 +863,37 @@ function MatchupTabContent() {
       {BENCH.map((row, idx) => (
         <MatchupLine key={`bench-${idx}-${row.position}`} row={row} />
       ))}
+
+      <Modal
+        visible={isTauntPreviewOpen}
+        animationType="fade"
+        transparent={false}
+        onRequestClose={() => setIsTauntPreviewOpen(false)}
+      >
+        <View style={styles.tauntPreviewScreen}>
+          <View style={styles.tauntLetterboxTop} />
+          <View style={styles.tauntLetterboxBottom} />
+          <TouchableOpacity
+            style={styles.tauntPreviewClose}
+            onPress={() => setIsTauntPreviewOpen(false)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.tauntPreviewCloseText}>Done</Text>
+          </TouchableOpacity>
+          <View style={styles.tauntPreviewHeader}>
+            <Text style={styles.tauntPreviewEyebrow}>TAUNT PREVIEW</Text>
+            <Text style={styles.tauntPreviewTitle}>What Your Opponent Sees</Text>
+          </View>
+          <View style={styles.tauntPreviewFrame}>
+            <Image
+              source={TAUNT_JEFFERSON_GIF}
+              resizeMode="contain"
+              style={styles.tauntPreviewGif}
+            />
+          </View>
+          <Text style={styles.tauntPreviewHint}>Auto-closes after the play window.</Text>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -925,50 +993,110 @@ function canPlayerFillSlot(slot: StarterSlot, playerPosition: PlayerPosition) {
   return slot === playerPosition;
 }
 
+function hashToInt(value: string) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getPlayerVoteMeta(playerId: string, playerProjection: number) {
+  const baseSeed = hashToInt(playerId);
+  const support =
+    Math.min(92, Math.max(54, Math.round(48 + playerProjection * 1.55 + (baseSeed % 16))));
+  const voterCount = Math.min(
+    VOTE_MEMBERS.length,
+    Math.max(1, Math.round((support / 100) * VOTE_MEMBERS.length))
+  );
+  const startIndex = baseSeed % VOTE_MEMBERS.length;
+  const voters = Array.from({ length: voterCount }, (_, idx) => {
+    const member = VOTE_MEMBERS[(startIndex + idx) % VOTE_MEMBERS.length];
+    return member;
+  });
+  return { support, voters };
+}
+
 function RosterTabContent() {
   const [lineup, setLineup] = useState<StarterLineupSlot[]>(INITIAL_ROSTER_STARTERS);
   const [bench, setBench] = useState<RosterPlayer[]>(INITIAL_ROSTER_BENCH);
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState("Tap a starter slot to view intelligent bench swaps.");
-
-  const selectedSlot = useMemo(
-    () => lineup.find((slot) => slot.id === selectedSlotId) ?? null,
-    [lineup, selectedSlotId]
+  const [statusMessage, setStatusMessage] = useState(
+    "Tap any starter or bench player to open the swap sheet."
   );
-
-  const eligibleBench = useMemo(() => {
-    if (!selectedSlot) return [];
-    return bench
-      .filter((player) => canPlayerFillSlot(selectedSlot.slot, player.position))
-      .sort((a, b) => b.projection - a.projection);
-  }, [bench, selectedSlot]);
+  const [swapSheet, setSwapSheet] = useState<
+    | { visible: false; source: null; starterId: null; benchId: null }
+    | { visible: true; source: "starter"; starterId: string; benchId: null }
+    | { visible: true; source: "bench"; starterId: null; benchId: string }
+  >({ visible: false, source: null, starterId: null, benchId: null });
 
   const projectedTotal = useMemo(
     () => lineup.reduce((sum, slot) => sum + slot.player.projection, 0),
     [lineup]
   );
 
-  const handleStarterPress = (slotId: string) => {
+  const selectedStarter = useMemo(() => {
+    if (swapSheet.source !== "starter" || !swapSheet.starterId) return null;
+    return lineup.find((slot) => slot.id === swapSheet.starterId) ?? null;
+  }, [lineup, swapSheet]);
+
+  const selectedBench = useMemo(() => {
+    if (swapSheet.source !== "bench" || !swapSheet.benchId) return null;
+    return bench.find((player) => player.id === swapSheet.benchId) ?? null;
+  }, [bench, swapSheet]);
+
+  const starterEligibleBench = useMemo(() => {
+    if (!selectedStarter) return [];
+    return bench
+      .filter((player) => canPlayerFillSlot(selectedStarter.slot, player.position))
+      .sort((a, b) => b.projection - a.projection);
+  }, [bench, selectedStarter]);
+
+  const benchEligibleStarters = useMemo(() => {
+    if (!selectedBench) return [];
+    return lineup.filter((slot) => canPlayerFillSlot(slot.slot, selectedBench.position));
+  }, [lineup, selectedBench]);
+
+  const openStarterSwapSheet = (slotId: string) => {
     Haptics.selectionAsync().catch(() => {});
-    setSelectedSlotId((current) => (current === slotId ? null : slotId));
+    setSwapSheet({
+      visible: true,
+      source: "starter",
+      starterId: slotId,
+      benchId: null,
+    });
   };
 
-  const executeSwap = (incomingPlayerId: string) => {
-    if (!selectedSlot) return;
-    const benchIndex = bench.findIndex((player) => player.id === incomingPlayerId);
+  const openBenchSwapSheet = (benchPlayerId: string) => {
+    Haptics.selectionAsync().catch(() => {});
+    setSwapSheet({
+      visible: true,
+      source: "bench",
+      starterId: null,
+      benchId: benchPlayerId,
+    });
+  };
+
+  const closeSwapSheet = () =>
+    setSwapSheet({ visible: false, source: null, starterId: null, benchId: null });
+
+  const swapStarterWithBench = (starterSlotId: string, benchPlayerId: string) => {
+    const starter = lineup.find((slot) => slot.id === starterSlotId);
+    if (!starter) return;
+    const benchIndex = bench.findIndex((player) => player.id === benchPlayerId);
     if (benchIndex < 0) return;
 
     const benchPlayer = bench[benchIndex];
-    if (!canPlayerFillSlot(selectedSlot.slot, benchPlayer.position)) {
-      setStatusMessage(`${benchPlayer.name} is not eligible for ${selectedSlot.slot}.`);
+    if (!canPlayerFillSlot(starter.slot, benchPlayer.position)) {
+      setStatusMessage(`${benchPlayer.name} is not eligible for ${starter.slot}.`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       return;
     }
 
-    const outgoingPlayer = selectedSlot.player;
+    const outgoingPlayer = starter.player;
     setLineup((previous) =>
       previous.map((slot) =>
-        slot.id === selectedSlot.id
+        slot.id === starter.id
           ? {
               ...slot,
               player: benchPlayer,
@@ -979,31 +1107,9 @@ function RosterTabContent() {
     setBench((previous) =>
       previous.map((player, idx) => (idx === benchIndex ? outgoingPlayer : player))
     );
-    setSelectedSlotId(null);
     setStatusMessage(`Swapped ${benchPlayer.name} in for ${outgoingPlayer.name}.`);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-  };
-
-  const autoOptimizeSelectedSlot = () => {
-    if (!selectedSlot) return;
-    if (!eligibleBench.length) {
-      setStatusMessage(`No eligible bench options for ${selectedSlot.slot}.`);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-      return;
-    }
-
-    const bestOption = eligibleBench[0];
-    const delta = bestOption.projection - selectedSlot.player.projection;
-    if (delta <= 0) {
-      setStatusMessage(`${selectedSlot.player.name} is already your highest projection at ${selectedSlot.slot}.`);
-      Haptics.selectionAsync().catch(() => {});
-      return;
-    }
-
-    executeSwap(bestOption.id);
-    setStatusMessage(
-      `Optimized ${selectedSlot.slot}: +${delta.toFixed(1)} pts (${bestOption.name} over ${selectedSlot.player.name}).`
-    );
+    closeSwapSheet();
   };
 
   return (
@@ -1019,22 +1125,43 @@ function RosterTabContent() {
           <Text style={styles.rosterProjectionLabel}>Projected Total</Text>
           <Text style={styles.rosterProjectionValue}>{projectedTotal.toFixed(1)}</Text>
         </View>
+        <View style={styles.rosterSummarySocialRow}>
+          <View style={styles.rosterSummaryAvatarStack}>
+            {VOTE_MEMBERS.map((member, idx) => (
+              <Image
+                key={`summary-voter-${member.id}`}
+                source={member.avatar}
+                resizeMode="contain"
+                style={[
+                  styles.rosterSummaryAvatar,
+                  idx > 0 && { marginLeft: -7 },
+                ]}
+              />
+            ))}
+          </View>
+          <Text style={styles.rosterSummarySocialText}>4/4 squadmates submitted lineup votes</Text>
+        </View>
         <Text style={styles.rosterStatusText}>{statusMessage}</Text>
       </View>
 
       <View style={styles.rosterSectionHeader}>
         <Text style={styles.rosterSectionTitle}>Starting Lineup</Text>
-        <Text style={styles.rosterSectionSub}>Tap a slot to swap</Text>
+        <Text style={styles.rosterSectionSub}>Tap any player to swap</Text>
       </View>
 
-      {lineup.map((slot) => {
-        const isSelected = slot.id === selectedSlotId;
+      {lineup.map((slot, index) => {
+        const voteMeta = getPlayerVoteMeta(slot.player.id, slot.player.projection);
+        const slotConfidence = SLOT_START_CONFIDENCE[slot.id] ?? 65;
+        const leftMiniAvatar = voteMeta.voters[0]?.avatar ?? VOTE_MEMBERS[index % VOTE_MEMBERS.length]?.avatar;
+        const rightMiniAvatar =
+          voteMeta.voters[1]?.avatar ??
+          VOTE_MEMBERS[(index + 1) % VOTE_MEMBERS.length]?.avatar;
         return (
           <TouchableOpacity
             key={slot.id}
             activeOpacity={0.9}
-            style={[styles.rosterSlotCard, isSelected && styles.rosterSlotCardSelected]}
-            onPress={() => handleStarterPress(slot.id)}
+            style={styles.rosterSlotCard}
+            onPress={() => openStarterSwapSheet(slot.id)}
           >
             <View style={styles.rosterSlotPill}>
               <Text style={styles.rosterSlotPillText}>{slot.slot}</Text>
@@ -1044,6 +1171,15 @@ function RosterTabContent() {
               <Text style={styles.rosterPlayerMeta}>
                 {slot.player.team} · {slot.player.position} · {slot.player.opponent}
               </Text>
+              <View style={styles.rosterSlotVoteRow}>
+                <View style={styles.rosterSlotMiniAvatars}>
+                  <Image source={leftMiniAvatar} resizeMode="contain" style={styles.rosterSlotMiniAvatar} />
+                  <Image source={rightMiniAvatar} resizeMode="contain" style={styles.rosterSlotMiniAvatarOverlap} />
+                </View>
+                <Text style={styles.rosterSlotVoteText}>
+                  {slotConfidence}% squad start vote
+                </Text>
+              </View>
             </View>
             <Text style={styles.rosterPlayerProjection}>{slot.player.projection.toFixed(1)}</Text>
           </TouchableOpacity>
@@ -1056,17 +1192,25 @@ function RosterTabContent() {
       </View>
 
       {bench.map((player) => {
-        const eligible = selectedSlot ? canPlayerFillSlot(selectedSlot.slot, player.position) : false;
+        const hasStarterPath = lineup.some((slot) =>
+          canPlayerFillSlot(slot.slot, player.position)
+        );
         return (
           <TouchableOpacity
             key={player.id}
             activeOpacity={0.9}
-            disabled={!selectedSlot || !eligible}
-            onPress={() => executeSwap(player.id)}
+            onPress={() => {
+              if (!hasStarterPath) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+                setStatusMessage(`${player.name} has no eligible starter slot.`);
+                return;
+              }
+              openBenchSwapSheet(player.id);
+            }}
             style={[
               styles.rosterBenchCard,
-              selectedSlot && eligible && styles.rosterBenchCardEligible,
-              selectedSlot && !eligible && styles.rosterBenchCardDisabled,
+              hasStarterPath && styles.rosterBenchCardEligible,
+              !hasStarterPath && styles.rosterBenchCardDisabled,
             ]}
           >
             <View style={styles.rosterSlotPillBench}>
@@ -1080,26 +1224,180 @@ function RosterTabContent() {
             </View>
             <View style={styles.rosterBenchRight}>
               <Text style={styles.rosterPlayerProjection}>{player.projection.toFixed(1)}</Text>
-              {selectedSlot ? (
-                <Text style={[styles.rosterBenchAction, eligible ? styles.rosterBenchActionOn : styles.rosterBenchActionOff]}>
-                  {eligible ? "Swap" : "Ineligible"}
-                </Text>
-              ) : null}
+              <Text style={[styles.rosterBenchAction, hasStarterPath ? styles.rosterBenchActionOn : styles.rosterBenchActionOff]}>
+                {hasStarterPath ? "Swap" : "Ineligible"}
+              </Text>
             </View>
           </TouchableOpacity>
         );
       })}
 
-      {selectedSlot ? (
-        <TouchableOpacity
-          activeOpacity={0.9}
-          style={styles.rosterAutoButton}
-          onPress={autoOptimizeSelectedSlot}
-        >
-          <MaterialIcons name="auto-fix-high" size={16} color="#0b1e19" />
-          <Text style={styles.rosterAutoButtonText}>Auto optimize {selectedSlot.slot}</Text>
-        </TouchableOpacity>
-      ) : null}
+      <Modal
+        visible={swapSheet.visible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeSwapSheet}
+      >
+        <View style={styles.rosterSheetOverlay}>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={styles.rosterSheetBackdrop}
+            onPress={closeSwapSheet}
+          />
+          <View style={styles.rosterSheetCard}>
+            <View style={styles.rosterSheetHandle} />
+            <View style={styles.rosterSheetHeader}>
+              <Text style={styles.rosterSheetTitle}>Swap Player</Text>
+              <TouchableOpacity activeOpacity={0.8} onPress={closeSwapSheet}>
+                <MaterialIcons name="close" size={20} color="#9ca3af" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedStarter ? (
+              <>
+                <Text style={styles.rosterSheetSub}>
+                  {selectedStarter.slot} currently starting
+                </Text>
+                <View style={styles.rosterSheetSelectedCard}>
+                  <View style={styles.rosterSlotPill}>
+                    <Text style={styles.rosterSlotPillText}>{selectedStarter.slot}</Text>
+                  </View>
+                  <View style={styles.rosterSlotBody}>
+                    <Text style={styles.rosterPlayerName}>{selectedStarter.player.name}</Text>
+                    <Text style={styles.rosterPlayerMeta}>
+                      {selectedStarter.player.team} · {selectedStarter.player.position} ·{" "}
+                      {selectedStarter.player.opponent}
+                    </Text>
+                  </View>
+                  <Text style={styles.rosterPlayerProjection}>
+                    {selectedStarter.player.projection.toFixed(1)}
+                  </Text>
+                </View>
+
+                <Text style={styles.rosterSheetSectionLabel}>Eligible bench options</Text>
+                <ScrollView style={styles.rosterSheetList} showsVerticalScrollIndicator={false}>
+                  {starterEligibleBench.map((player) => {
+                    const voteMeta = getPlayerVoteMeta(player.id, player.projection);
+                    return (
+                      <TouchableOpacity
+                        key={player.id}
+                        style={styles.rosterSheetOptionCard}
+                        activeOpacity={0.88}
+                        onPress={() => swapStarterWithBench(selectedStarter.id, player.id)}
+                      >
+                        <View style={styles.rosterSheetOptionTop}>
+                          <View style={styles.rosterSlotPillBench}>
+                            <Text style={styles.rosterSlotPillText}>BE</Text>
+                          </View>
+                          <View style={styles.rosterSlotBody}>
+                            <Text style={styles.rosterPlayerName}>{player.name}</Text>
+                            <Text style={styles.rosterPlayerMeta}>
+                              {player.team} · {player.position} · {player.opponent}
+                            </Text>
+                          </View>
+                          <Text style={styles.rosterPlayerProjection}>
+                            {player.projection.toFixed(1)}
+                          </Text>
+                        </View>
+                        <View style={styles.rosterSheetVoteRow}>
+                          <Text style={styles.rosterSheetVoteText}>
+                            {voteMeta.support}% want this player to start
+                          </Text>
+                          <View style={styles.rosterSheetSwapChip}>
+                            <Text style={styles.rosterSheetSwapChipText}>Tap to swap</Text>
+                          </View>
+                          <View style={styles.rosterSheetVoters}>
+                            {voteMeta.voters.map((voter, idx) => (
+                              <Image
+                                key={`${player.id}-${voter.id}-${idx}`}
+                                source={voter.avatar}
+                                resizeMode="contain"
+                                style={styles.rosterSheetVoterAvatar}
+                              />
+                            ))}
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            ) : null}
+
+            {selectedBench ? (
+              <>
+                <Text style={styles.rosterSheetSub}>Bench player selected</Text>
+                <View style={styles.rosterSheetSelectedCard}>
+                  <View style={styles.rosterSlotPillBench}>
+                    <Text style={styles.rosterSlotPillText}>BE</Text>
+                  </View>
+                  <View style={styles.rosterSlotBody}>
+                    <Text style={styles.rosterPlayerName}>{selectedBench.name}</Text>
+                    <Text style={styles.rosterPlayerMeta}>
+                      {selectedBench.team} · {selectedBench.position} · {selectedBench.opponent}
+                    </Text>
+                  </View>
+                  <Text style={styles.rosterPlayerProjection}>
+                    {selectedBench.projection.toFixed(1)}
+                  </Text>
+                </View>
+
+                <Text style={styles.rosterSheetSectionLabel}>Eligible starter slots</Text>
+                <ScrollView style={styles.rosterSheetList} showsVerticalScrollIndicator={false}>
+                  {benchEligibleStarters.map((starterSlot) => {
+                    const voteMeta = getPlayerVoteMeta(
+                      starterSlot.player.id,
+                      starterSlot.player.projection
+                    );
+                    return (
+                      <TouchableOpacity
+                        key={starterSlot.id}
+                        style={styles.rosterSheetOptionCard}
+                        activeOpacity={0.88}
+                        onPress={() => swapStarterWithBench(starterSlot.id, selectedBench.id)}
+                      >
+                        <View style={styles.rosterSheetOptionTop}>
+                          <View style={styles.rosterSlotPill}>
+                            <Text style={styles.rosterSlotPillText}>{starterSlot.slot}</Text>
+                          </View>
+                          <View style={styles.rosterSlotBody}>
+                            <Text style={styles.rosterPlayerName}>{starterSlot.player.name}</Text>
+                            <Text style={styles.rosterPlayerMeta}>
+                              {starterSlot.player.team} · {starterSlot.player.position} ·{" "}
+                              {starterSlot.player.opponent}
+                            </Text>
+                          </View>
+                          <Text style={styles.rosterPlayerProjection}>
+                            {starterSlot.player.projection.toFixed(1)}
+                          </Text>
+                        </View>
+                        <View style={styles.rosterSheetVoteRow}>
+                          <Text style={styles.rosterSheetVoteText}>
+                            {voteMeta.support}% voted to keep this starter
+                          </Text>
+                          <View style={styles.rosterSheetSwapChip}>
+                            <Text style={styles.rosterSheetSwapChipText}>Tap to swap</Text>
+                          </View>
+                          <View style={styles.rosterSheetVoters}>
+                            {voteMeta.voters.map((voter, idx) => (
+                              <Image
+                                key={`${starterSlot.id}-${voter.id}-${idx}`}
+                                source={voter.avatar}
+                                resizeMode="contain"
+                                style={styles.rosterSheetVoterAvatar}
+                              />
+                            ))}
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1398,7 +1696,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 6,
+    marginBottom: 7,
   },
   rosterProjectionLabel: {
     color: "#8ea1b8",
@@ -1412,7 +1710,155 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     lineHeight: 28,
   },
+  rosterSummarySocialRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 7,
+  },
+  rosterSummaryAvatarStack: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  rosterSummaryAvatar: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "rgba(15,23,42,0.85)",
+    borderWidth: 1,
+    borderColor: "rgba(99,114,140,0.4)",
+  },
+  rosterSummarySocialText: {
+    color: "#8ea1b8",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
   rosterStatusText: {
+    color: "#9ca3af",
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  rosterVoteCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(105,132,189,0.34)",
+    backgroundColor: "#121927",
+    padding: 12,
+    marginBottom: 12,
+  },
+  rosterVoteHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+    gap: 8,
+  },
+  rosterVoteTitle: {
+    color: "#f1f5f9",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  rosterVoteBadge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(127,101,192,0.45)",
+    backgroundColor: "rgba(127,101,192,0.18)",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  rosterVoteBadgeText: {
+    color: "#cabaff",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  rosterVoteBars: {
+    marginBottom: 10,
+  },
+  rosterVoteTrack: {
+    height: 10,
+    borderRadius: 999,
+    overflow: "hidden",
+    backgroundColor: "#1e293b",
+    flexDirection: "row",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.2)",
+    marginBottom: 6,
+  },
+  rosterVoteFillKeep: {
+    backgroundColor: "#3ab298",
+    height: "100%",
+  },
+  rosterVoteFillSwap: {
+    backgroundColor: "#7f65c0",
+    height: "100%",
+  },
+  rosterVoteSplitRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  rosterVoteSplitKeep: {
+    color: "#8ef2dd",
+    fontSize: 11,
+    fontWeight: "700",
+    flex: 1,
+  },
+  rosterVoteSplitSwap: {
+    color: "#cabaff",
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "right",
+    flex: 1,
+  },
+  rosterVoteWhoLabel: {
+    color: "#7b8da8",
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.9,
+    marginBottom: 6,
+  },
+  rosterVoterGrid: {
+    gap: 7,
+  },
+  rosterVoterCard: {
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: "rgba(90,109,145,0.34)",
+    backgroundColor: "rgba(16,22,34,0.86)",
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  rosterVoterAvatar: {
+    width: 22,
+    height: 22,
+  },
+  rosterVoterTextWrap: {
+    flex: 1,
+  },
+  rosterVoterName: {
+    color: "#f8fafc",
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 1,
+  },
+  rosterVoterPick: {
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  rosterVoterPickKeep: {
+    color: "#82e9d2",
+  },
+  rosterVoterPickSwap: {
+    color: "#ccb9ff",
+  },
+  rosterVoteEmptyState: {
     color: "#9ca3af",
     fontSize: 12,
     lineHeight: 17,
@@ -1487,6 +1933,45 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  rosterSlotVoteRow: {
+    marginTop: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  rosterSlotMiniAvatars: {
+    width: 30,
+    height: 16,
+    position: "relative",
+  },
+  rosterSlotMiniAvatar: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "rgba(15,23,42,0.8)",
+    borderWidth: 1,
+    borderColor: "rgba(99,114,140,0.45)",
+    position: "absolute",
+    left: 0,
+    top: 0,
+  },
+  rosterSlotMiniAvatarOverlap: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "rgba(15,23,42,0.8)",
+    borderWidth: 1,
+    borderColor: "rgba(99,114,140,0.45)",
+    position: "absolute",
+    left: 12,
+    top: 0,
+  },
+  rosterSlotVoteText: {
+    color: "#7fd4c0",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
   rosterPlayerName: {
     color: "#f8fafc",
     fontSize: 14,
@@ -1558,6 +2043,131 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
     letterSpacing: 0.3,
+  },
+  rosterSheetOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  rosterSheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(2, 6, 14, 0.58)",
+  },
+  rosterSheetCard: {
+    maxHeight: "76%",
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderWidth: 1,
+    borderColor: "rgba(96,116,150,0.42)",
+    backgroundColor: "#0F1522",
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 16,
+  },
+  rosterSheetHandle: {
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "rgba(156,163,175,0.45)",
+    alignSelf: "center",
+    marginBottom: 10,
+  },
+  rosterSheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 2,
+  },
+  rosterSheetTitle: {
+    color: "#f8fafc",
+    fontSize: 19,
+    fontWeight: "800",
+  },
+  rosterSheetSub: {
+    color: "#94a3b8",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  rosterSheetSelectedCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(58,178,152,0.35)",
+    backgroundColor: "rgba(21,33,42,0.92)",
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    marginBottom: 9,
+  },
+  rosterSheetSectionLabel: {
+    color: "#7f65c0",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  rosterSheetList: {
+    maxHeight: 290,
+  },
+  rosterSheetOptionCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(80,99,130,0.4)",
+    backgroundColor: "#131C2A",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  rosterSheetOptionTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+  rosterSheetVoteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 6,
+  },
+  rosterSheetVoteText: {
+    color: "#88cfc0",
+    fontSize: 10,
+    fontWeight: "700",
+    flex: 1,
+  },
+  rosterSheetSwapChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(58,178,152,0.4)",
+    backgroundColor: "rgba(58,178,152,0.15)",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  rosterSheetSwapChipText: {
+    color: "#97efda",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+  },
+  rosterSheetVoters: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  rosterSheetVoterAvatar: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "rgba(15,23,42,0.82)",
+    borderWidth: 1,
+    borderColor: "rgba(99,114,140,0.42)",
   },
 
   presenceSection: { paddingHorizontal: 20, paddingTop: 16 },
@@ -1978,16 +2588,128 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 10,
   },
+  matchupTickerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 6,
+    marginBottom: 3,
+  },
   matchupTickerTitle: {
     color: "#f1f5f9",
     fontSize: 11,
     fontWeight: "800",
-    marginBottom: 3,
+    flex: 1,
   },
   matchupTickerSub: {
     color: "#94a3b8",
     fontSize: 10,
     fontWeight: "600",
+  },
+  tauntChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(127,101,192,0.55)",
+    backgroundColor: "rgba(127,101,192,0.16)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  tauntChipText: {
+    color: "#c7b8ff",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+  },
+  tauntPreviewScreen: {
+    flex: 1,
+    backgroundColor: "#02050B",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 18,
+    overflow: "hidden",
+  },
+  tauntLetterboxTop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 56,
+    backgroundColor: "#000000",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(56, 189, 248, 0.18)",
+  },
+  tauntLetterboxBottom: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 56,
+    backgroundColor: "#000000",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(56, 189, 248, 0.18)",
+  },
+  tauntPreviewClose: {
+    position: "absolute",
+    top: 68,
+    right: 22,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.4)",
+    backgroundColor: "rgba(2,6,12,0.84)",
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    zIndex: 2,
+  },
+  tauntPreviewCloseText: {
+    color: "#D6E2F4",
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  tauntPreviewHeader: {
+    alignItems: "center",
+    marginBottom: 12,
+    paddingHorizontal: 12,
+  },
+  tauntPreviewEyebrow: {
+    color: "#6FD3CC",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.3,
+    marginBottom: 4,
+  },
+  tauntPreviewTitle: {
+    color: "#F1F6FF",
+    fontSize: 22,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  tauntPreviewFrame: {
+    width: "100%",
+    maxWidth: 860,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(96,165,250,0.22)",
+    backgroundColor: "#060B14",
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    shadowColor: "#000000",
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 10 },
+  },
+  tauntPreviewGif: {
+    width: "100%",
+    height: 420,
+    borderRadius: 8,
+  },
+  tauntPreviewHint: {
+    marginTop: 12,
+    color: "#8FA4C2",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
   },
   matchupMetricRow: {
     marginHorizontal: 14,

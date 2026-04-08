@@ -1,7 +1,6 @@
 import React from "react";
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
 const LEFT_CHARACTER = require("../../assets/demo-assets/home-hero-character.png");
@@ -135,7 +134,6 @@ function MatchupLine({ row }: { row: MatchupRow }) {
 }
 
 export default function LineupDemoScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
 
   return (
@@ -143,25 +141,9 @@ export default function LineupDemoScreen() {
       <View style={styles.root}>
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: 96 + Math.max(insets.bottom, 12) }]}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 28 }]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.statusBar}>
-            <Text style={styles.statusTime}>9:41</Text>
-            <View style={styles.statusRight}>
-              <View style={styles.signalBars}>
-                <View style={[styles.signalBar, { height: 4 }]} />
-                <View style={[styles.signalBar, { height: 6 }]} />
-                <View style={[styles.signalBar, { height: 9 }]} />
-                <View style={[styles.signalBar, { height: 12 }]} />
-              </View>
-              <MaterialIcons name="wifi" size={14} color="#f0f0f0" />
-              <View style={styles.battery}>
-                <View style={styles.batteryFill} />
-              </View>
-            </View>
-          </View>
-
           <View style={styles.topHeader}>
             <TouchableOpacity
               style={styles.backBtn}
@@ -259,31 +241,6 @@ export default function LineupDemoScreen() {
             <MatchupLine key={`bench-${idx}-${row.position}`} row={row} />
           ))}
         </ScrollView>
-
-        <View style={[styles.bottomNavWrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-          <View style={styles.bottomNav}>
-            <View style={styles.navItem}>
-              <MaterialIcons name="home" size={20} color="#6b7280" />
-              <Text style={styles.navLabel}>Home</Text>
-            </View>
-            <View style={styles.navItem}>
-              <MaterialIcons name="flag" size={20} color="#3ab298" />
-              <Text style={[styles.navLabel, styles.navLabelActive]}>Leagues</Text>
-            </View>
-            <View style={styles.navItem}>
-              <MaterialIcons name="explore" size={20} color="#6b7280" />
-              <Text style={styles.navLabel}>Explore</Text>
-            </View>
-            <View style={styles.navItem}>
-              <MaterialIcons name="diamond" size={20} color="#6b7280" />
-              <Text style={styles.navLabel}>Avatar</Text>
-            </View>
-            <View style={styles.navItem}>
-              <MaterialIcons name="person" size={20} color="#6b7280" />
-              <Text style={styles.navLabel}>Profile</Text>
-            </View>
-          </View>
-        </View>
       </View>
     </SafeAreaView>
   );

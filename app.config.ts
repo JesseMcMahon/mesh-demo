@@ -17,11 +17,13 @@ const demoAndroidPackage =
   process.env.EXPO_PUBLIC_DEMO_ANDROID_PACKAGE || "com.hfs.huddle.demo";
 const easProjectId =
   process.env.EXPO_PUBLIC_EAS_PROJECT_ID || "976e79fe-d8d1-4ad0-8971-b2e92ac54332";
+const demoAppIcon = "./assets/images/demo-app-icon.jpg";
 
 const config: ExpoConfig = {
   ...baseConfig,
   name: isInvestorDemo ? "Mesh Product Demo" : baseConfig.name,
   slug: isInvestorDemo ? "mesh-demo" : baseConfig.slug,
+  icon: isInvestorDemo ? demoAppIcon : baseConfig.icon,
   scheme: isInvestorDemo ? "hfsdemo" : baseConfig.scheme,
   runtimeVersion: {
     policy: "appVersion",
@@ -32,6 +34,7 @@ const config: ExpoConfig = {
   },
   ios: {
     ...baseConfig.ios,
+    icon: isInvestorDemo ? demoAppIcon : baseConfig.ios?.icon,
     bundleIdentifier: isInvestorDemo
       ? demoBundleId
       : baseConfig.ios?.bundleIdentifier,

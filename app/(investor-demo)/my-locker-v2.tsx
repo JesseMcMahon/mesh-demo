@@ -1,6 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
   Image,
+  Modal,
+  PanResponder,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -30,6 +34,7 @@ const COLORS = {
 };
 
 type TabId = "progress" | "customize" | "store";
+type CustomizeView = "row" | "grid";
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: "progress", label: "Progress" },
@@ -146,7 +151,477 @@ const STORE_EMOTES = [
   },
 ];
 
-const HERO_IMAGE = require("../../assets/demo-assets/html-locker/avatar-main.png");
+const HERO_IMAGE = require("../../assets/demo-assets/home-hero-character.png");
+const HERO_IMAGE_CHAIN = require("../../assets/demo-assets/chain-equipped.png");
+const PROGRESS_NEXT_IMAGE = require("../../assets/demo-assets/html-locker/progress-next-item.png");
+const BWW_SKIN_COST = 50;
+
+const CUSTOMIZE_ACCESSORIES = [
+  {
+    id: "chain",
+    name: "Top Scorer Chain",
+    sub2: "Weekly Wearable",
+    sub: "Legendary",
+    image: require("../../assets/demo-assets/html-locker/customize-chain.png"),
+    badge: "OFF",
+  },
+  {
+    id: "mask",
+    name: "Cry Face Mask",
+    sub2: "Accessory",
+    sub: "Epic · Meme",
+    image: require("../../assets/demo-assets/html-locker/customize-cry-mask.png"),
+    badge: "OFF",
+  },
+  {
+    id: "nike",
+    name: "Nike Fantasy Pro 2's",
+    sub2: "Accessory",
+    sub: "Legendary · Collab",
+    image: require("../../assets/demo-assets/html-locker/customize-nike.png"),
+    badge: "OFF",
+  },
+];
+
+const CUSTOMIZE_SKINS = [
+  {
+    id: "cobra",
+    name: "Cobra Unit",
+    sub2: null as string | null,
+    sub: "Rare · Football",
+    image: require("../../assets/demo-assets/html-locker/customize-cobra.png"),
+    badge: "ON",
+    equipped: true,
+  },
+  {
+    id: "coach",
+    name: "Coach",
+    sub2: null as string | null,
+    sub: "Epic · Football",
+    image: require("../../assets/demo-assets/html-locker/skin-coach.png"),
+    badge: null as string | null,
+  },
+  {
+    id: "pikapp",
+    name: "Pi Kapp Man",
+    sub2: null as string | null,
+    sub: "Rare · Greek Life",
+    image: require("../../assets/demo-assets/html-locker/skin-pikapp-man.png"),
+    badge: null as string | null,
+  },
+];
+
+const CUSTOMIZE_TAUNTS = [
+  {
+    id: "wha",
+    name: "WHAAAAAA",
+    sub2: "Taunt",
+    sub: "Epic · Football",
+    image: require("../../assets/demo-assets/html-locker/customize-taunt-wha.png"),
+    badge: "SEL",
+    selected: true,
+  },
+];
+
+const CUSTOMIZE_EMOTES = [
+  {
+    id: "fire",
+    name: "🔥 Fire",
+    sub2: "Emote",
+    sub: "Common · Football",
+    image: require("../../assets/demo-assets/html-locker/customize-emote-fire.png"),
+    badge: "SEL",
+    selected: true,
+  },
+  {
+    id: "skull",
+    name: "💀 GG EZ",
+    sub2: "Emote",
+    sub: "Epic · Taunt",
+    image: require("../../assets/demo-assets/html-locker/customize-emote-ggez.png"),
+    badge: null as string | null,
+  },
+  {
+    id: "crown",
+    name: "👑 Crown Up",
+    sub2: "Emote",
+    sub: "Rare · Football",
+    image: require("../../assets/demo-assets/html-locker/customize-emote-crown.png"),
+    badge: null as string | null,
+  },
+];
+
+function ProgressPanel({
+  onPressViewItem,
+  bwwOwned,
+  bwwEquipped,
+}: {
+  onPressViewItem: () => void;
+  bwwOwned: boolean;
+  bwwEquipped: boolean;
+}) {
+  return (
+    <View style={[styles.panel, styles.panelContent]}>
+      <View style={styles.xpCard}>
+        <View style={styles.xpTopRow}>
+          <View>
+            <Text style={styles.xpLabel}>XP Progress</Text>
+            <Text style={styles.xpLevel}>Level 12</Text>
+          </View>
+          <View style={styles.xpRight}>
+            <Text style={styles.xpNumbers}>
+              3,420 <Text style={styles.xpNumbersSub}>/ 5,000 XP</Text>
+            </Text>
+            <Text style={styles.xpPrestige}>1,580 XP to Prestige</Text>
+          </View>
+        </View>
+        <View style={styles.xpBarTrack}>
+          <View style={styles.xpBarFill} />
+          <View style={styles.xpBarMarker}>
+            <View style={styles.xpMarkerDot} />
+          </View>
+        </View>
+        <View style={styles.xpBarLabels}>
+          <Text style={styles.xpBarLabel}>Lv 12</Text>
+          <Text style={styles.xpPrestigeLabel}>⬡ Prestige at Lv 15</Text>
+          <Text style={styles.xpBarLabel}>Lv 13</Text>
+        </View>
+      </View>
+
+      <View style={styles.bpCard}>
+        <View style={styles.bpHeaderRow}>
+          <View>
+            <Text style={styles.bpEyebrow}>Current Battle Pass</Text>
+            <Text style={styles.bpTitle}>🏈 NFL Football</Text>
+          </View>
+          <View style={styles.bpTierBadge}>
+            <Text style={styles.bpTierBadgeText}>Tier 7 / 20</Text>
+          </View>
+        </View>
+
+        <View style={styles.bpNextRow}>
+          <Text style={styles.bpNextLabel}>Next unlock in</Text>
+          <View style={styles.bpNextXpPill}>
+            <Text style={styles.bpNextXpText}>+320 XP</Text>
+          </View>
+        </View>
+
+        <View style={styles.bpTrackWrap}>
+          <View style={styles.bpTrackLine} />
+          <View style={styles.bpTrackFill} />
+          <View style={styles.bpNodes}>
+            {[
+              { id: "t1", emoji: "🎖", labelA: "T1", labelB: "Badge", state: "done" },
+              { id: "t3", emoji: "💎", labelA: "T3", labelB: "50 Gems", state: "done" },
+              { id: "t5", emoji: "🔥", labelA: "T5", labelB: "Emote", state: "done" },
+              { id: "t7", emoji: "👕", labelA: "T7", labelB: "New Skin", state: "current" },
+              { id: "t15", emoji: "👕", labelA: "T15", labelB: "Jersey", state: "locked" },
+              { id: "t20", emoji: "🌟", labelA: "T20", labelB: "Skin", state: "locked" },
+            ].map((node) => (
+              <View key={node.id} style={styles.bpNode}>
+                <View
+                  style={[
+                    styles.bpNodeRing,
+                    node.state === "done" && styles.bpNodeRingDone,
+                    node.state === "current" && styles.bpNodeRingCurrent,
+                    node.state === "locked" && styles.bpNodeRingLocked,
+                  ]}
+                >
+                  <Text style={styles.bpNodeEmoji}>{node.emoji}</Text>
+                </View>
+                <Text
+                  style={[
+                    styles.bpNodeLabel,
+                    node.state === "done" && styles.bpNodeLabelDone,
+                    node.state === "current" && styles.bpNodeLabelCurrent,
+                  ]}
+                >
+                  {node.labelA}
+                  {"\n"}
+                  {node.labelB}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <TouchableOpacity style={styles.bpNextItem} activeOpacity={0.9} onPress={onPressViewItem}>
+          <View style={styles.bpNextIcon}>
+            <Image source={PROGRESS_NEXT_IMAGE} style={styles.bpNextIconImage} resizeMode="contain" />
+          </View>
+          <View style={styles.bpNextInfo}>
+            <Text style={styles.bpNextName}>BWW Skin</Text>
+            <Text style={styles.bpNextSub}>
+              {bwwEquipped
+                ? "Tier 7 · Skin · Equipped"
+                : bwwOwned
+                  ? "Tier 7 · Skin · Owned"
+                  : "Tier 7 · Skin · Rare"}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.bpViewItemPill,
+              bwwOwned && styles.bpViewItemPillOwned,
+              bwwEquipped && styles.bpViewItemPillEquipped,
+            ]}
+          >
+            <Text
+              style={[
+                styles.bpViewItemText,
+                bwwOwned && styles.bpViewItemTextOwned,
+                bwwEquipped && styles.bpViewItemTextEquipped,
+              ]}
+            >
+              {bwwEquipped ? "Equipped" : bwwOwned ? "Owned" : "View Item"}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+function CustomizeCard({
+  item,
+  mode,
+  onPress,
+}: {
+  item: {
+    id: string;
+    name: string;
+    sub2: string | null;
+    sub: string;
+    image: any;
+    badge: string | null;
+    selected?: boolean;
+    equipped?: boolean;
+  };
+  mode: CustomizeView;
+  onPress?: () => void;
+}) {
+  if (mode === "grid") {
+    return (
+      <TouchableOpacity
+        style={[
+          styles.gridCard,
+          item.equipped && styles.gridCardEquipped,
+          item.selected && styles.gridCardSelected,
+        ]}
+        activeOpacity={0.9}
+        onPress={onPress}
+      >
+        <View style={styles.gridImageWrap}>
+          <Image source={item.image} style={styles.gridImage} resizeMode="contain" />
+        </View>
+        <Text style={styles.gridLabel}>
+          {item.name}
+          {"\n"}
+          <Text style={styles.gridSub}>{item.sub}</Text>
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.scrollCard,
+        item.equipped && styles.scrollCardEquipped,
+        item.selected && styles.scrollCardSelected,
+      ]}
+      activeOpacity={0.9}
+      onPress={onPress}
+    >
+      {item.badge ? (
+        <View
+          style={[
+            styles.scrollCardBadge,
+            item.badge === "ON" && styles.scrollCardBadgeOn,
+            item.badge === "SEL" && styles.scrollCardBadgeSel,
+            item.badge === "OFF" && styles.scrollCardBadgeOff,
+          ]}
+        >
+          <Text
+            style={[
+              styles.scrollCardBadgeText,
+              item.badge === "ON" && styles.scrollCardBadgeTextOn,
+              item.badge === "SEL" && styles.scrollCardBadgeTextSel,
+            ]}
+          >
+            {item.badge}
+          </Text>
+        </View>
+      ) : null}
+      <View style={styles.scrollCardImageWrap}>
+        <Image source={item.image} style={styles.scrollCardImage} resizeMode="contain" />
+      </View>
+      <View style={styles.scrollCardBody}>
+        <Text style={styles.scrollCardName}>{item.name}</Text>
+        {item.sub2 ? <Text style={styles.scrollCardSub2}>{item.sub2}</Text> : null}
+        <Text style={styles.scrollCardSub}>{item.sub}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function CustomizeSection({
+  title,
+  count,
+  subtitle,
+  items,
+  mode,
+  rightPill,
+  onPressItem,
+}: {
+  title: string;
+  count: string;
+  subtitle: string;
+  items: Array<{
+    id: string;
+    name: string;
+    sub2: string | null;
+    sub: string;
+    image: any;
+    badge: string | null;
+    selected?: boolean;
+    equipped?: boolean;
+  }>;
+  mode: CustomizeView;
+  rightPill?: string;
+  onPressItem?: (itemId: string) => void;
+}) {
+  return (
+    <View style={styles.customizeSection}>
+      <View style={styles.catSectionRow}>
+        <Text style={styles.catLabel}>{title}</Text>
+        {rightPill ? (
+          <View style={styles.slotCounterPill}>
+            <Text style={styles.slotCounterText}>{rightPill}</Text>
+          </View>
+        ) : (
+          <Text style={styles.catCount}>{count}</Text>
+        )}
+      </View>
+      <Text style={styles.catSub}>{subtitle}</Text>
+
+      {mode === "row" ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.customizeRowContent}
+        >
+          {items.map((item) => (
+            <CustomizeCard
+              key={item.id}
+              item={item}
+              mode="row"
+              onPress={onPressItem ? () => onPressItem(item.id) : undefined}
+            />
+          ))}
+        </ScrollView>
+      ) : (
+        <View style={styles.gridWrap}>
+          {items.map((item) => (
+            <CustomizeCard
+              key={item.id}
+              item={item}
+              mode="grid"
+              onPress={onPressItem ? () => onPressItem(item.id) : undefined}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function CustomizePanel({
+  customizeView,
+  setCustomizeView,
+  accessoryItems,
+  onPressItem,
+}: {
+  customizeView: CustomizeView;
+  setCustomizeView: (mode: CustomizeView) => void;
+  accessoryItems: Array<{
+    id: string;
+    name: string;
+    sub2: string | null;
+    sub: string;
+    image: any;
+    badge: string | null;
+    selected?: boolean;
+    equipped?: boolean;
+  }>;
+  onPressItem: (itemId: string) => void;
+}) {
+  return (
+    <View style={[styles.panel, styles.panelContent]}>
+      <View style={styles.customizeTopBar}>
+        <View style={styles.viewToggle}>
+          <TouchableOpacity
+            style={[styles.viewToggleButton, customizeView === "row" && styles.viewToggleButtonActive]}
+            onPress={() => setCustomizeView("row")}
+            activeOpacity={0.9}
+          >
+            <Text
+              style={[styles.viewToggleText, customizeView === "row" && styles.viewToggleTextActive]}
+            >
+              ≡
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.viewToggleButton, customizeView === "grid" && styles.viewToggleButtonActive]}
+            onPress={() => setCustomizeView("grid")}
+            activeOpacity={0.9}
+          >
+            <Text
+              style={[styles.viewToggleText, customizeView === "grid" && styles.viewToggleTextActive]}
+            >
+              ▩
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <CustomizeSection
+        title="Accessories"
+        count="3 owned"
+        subtitle="Tap to equip or remove"
+        items={accessoryItems}
+        mode={customizeView}
+        onPressItem={onPressItem}
+      />
+
+      <CustomizeSection
+        title="Skins"
+        count="3 owned"
+        subtitle="Your active skin for this league"
+        items={CUSTOMIZE_SKINS}
+        mode={customizeView}
+      />
+
+      <CustomizeSection
+        title="Taunts"
+        count="1 / 5"
+        subtitle="Select up to 5 — these are available to fire during matchups"
+        items={CUSTOMIZE_TAUNTS}
+        mode={customizeView}
+        rightPill="Selected: 1 / 5"
+      />
+
+      <CustomizeSection
+        title="Emotes"
+        count="1 / 5"
+        subtitle="Select up to 5 — pop these live during matchups as reactions"
+        items={CUSTOMIZE_EMOTES}
+        mode={customizeView}
+        rightPill="Selected: 1 / 5"
+      />
+    </View>
+  );
+}
 
 function rarityColor(rarity: string) {
   if (rarity === "Legendary") return COLORS.amber;
@@ -271,10 +746,173 @@ function GemBundles() {
 export default function MyLockerV2Screen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { state } = useInvestorDemo();
-  const [activeTab, setActiveTab] = useState<TabId>("store");
+  const { state, recordEconomySpend } = useInvestorDemo();
+  const [activeTab, setActiveTab] = useState<TabId>("progress");
+  const [customizeView, setCustomizeView] = useState<CustomizeView>("row");
+  const [isBwwSheetVisible, setIsBwwSheetVisible] = useState(false);
+  const [bwwOwned, setBwwOwned] = useState(false);
+  const [bwwEquipped, setBwwEquipped] = useState(false);
+  const [bwwError, setBwwError] = useState<string | null>(null);
+  const [purchaseToast, setPurchaseToast] = useState<string | null>(null);
+  const [isChainEquipped, setIsChainEquipped] = useState(false);
 
   const gemCount = useMemo(() => state?.lifetimeGems ?? 640, [state?.lifetimeGems]);
+  const canAffordBww = gemCount >= BWW_SKIN_COST;
+  const avatarSource = isChainEquipped ? HERO_IMAGE_CHAIN : HERO_IMAGE;
+
+  const accessoryItems = useMemo(
+    () =>
+      CUSTOMIZE_ACCESSORIES.map((item) =>
+        item.id === "chain"
+          ? {
+              ...item,
+              badge: isChainEquipped ? "ON" : "OFF",
+              equipped: isChainEquipped,
+              sub: isChainEquipped ? "Legendary · Equipped" : "Legendary",
+            }
+          : item
+      ),
+    [isChainEquipped]
+  );
+  const toastTranslateY = useRef(new Animated.Value(22)).current;
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const dismissPurchaseToast = (clearState: boolean = true) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    Animated.parallel([
+      Animated.timing(toastTranslateY, {
+        toValue: 28,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      if (clearState) {
+        setPurchaseToast(null);
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (!purchaseToast) return;
+    toastTranslateY.setValue(18);
+    toastOpacity.setValue(0);
+    Animated.parallel([
+      Animated.spring(toastTranslateY, {
+        toValue: 0,
+        stiffness: 240,
+        damping: 18,
+        mass: 0.9,
+        useNativeDriver: true,
+      }),
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    toastTimerRef.current = setTimeout(() => {
+      dismissPurchaseToast(true);
+    }, 3000);
+
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = null;
+      }
+    };
+  }, [purchaseToast, toastOpacity, toastTranslateY]);
+
+  const toastPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          !!purchaseToast && gestureState.dy > 3,
+        onPanResponderMove: (_, gestureState) => {
+          const dy = Math.max(0, gestureState.dy);
+          toastTranslateY.setValue(dy);
+          toastOpacity.setValue(Math.max(0.45, 1 - dy / 120));
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dy > 40 || gestureState.vy > 0.9) {
+            Haptics.selectionAsync().catch(() => {});
+            dismissPurchaseToast(true);
+            return;
+          }
+          Animated.parallel([
+            Animated.spring(toastTranslateY, {
+              toValue: 0,
+              stiffness: 260,
+              damping: 18,
+              mass: 0.8,
+              useNativeDriver: true,
+            }),
+            Animated.timing(toastOpacity, {
+              toValue: 1,
+              duration: 120,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        },
+      }),
+    [purchaseToast, toastOpacity, toastTranslateY]
+  );
+
+  const openBwwSheet = () => {
+    Haptics.selectionAsync().catch(() => {});
+    setBwwError(null);
+    setIsBwwSheetVisible(true);
+  };
+
+  const closeBwwSheet = () => {
+    setIsBwwSheetVisible(false);
+  };
+
+  const handleBwwPrimaryAction = () => {
+    if (bwwEquipped) {
+      Haptics.selectionAsync().catch(() => {});
+      closeBwwSheet();
+      return;
+    }
+
+    if (bwwOwned) {
+      setBwwEquipped(true);
+      closeBwwSheet();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      return;
+    }
+
+    if (!canAffordBww) {
+      const needed = Math.max(0, BWW_SKIN_COST - gemCount);
+      setBwwError(`You need ${needed} more gems to unlock this skin.`);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      return;
+    }
+
+    const remaining = Math.max(0, gemCount - BWW_SKIN_COST);
+    recordEconomySpend(BWW_SKIN_COST);
+    setBwwOwned(true);
+    setBwwEquipped(true);
+    setBwwError(null);
+    closeBwwSheet();
+    setPurchaseToast(`💎 ${BWW_SKIN_COST} gems spent · ${remaining} remaining`);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  };
+
+  const handleCustomizeItemPress = (itemId: string) => {
+    if (itemId !== "chain") return;
+    setIsChainEquipped((previous) => !previous);
+    Haptics.selectionAsync().catch(() => {});
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -283,25 +921,10 @@ export default function MyLockerV2Screen() {
         style={styles.screen}
         contentContainerStyle={[
           styles.screenContent,
-          { paddingBottom: 96 + Math.max(insets.bottom, 12) },
+          { paddingBottom: 24 + Math.max(insets.bottom, 12) },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.statusBarRow}>
-          <Text style={styles.statusTime}>9:41</Text>
-          <View style={styles.statusRight}>
-            <View style={styles.signalBars}>
-              <View style={[styles.signalBar, { height: 4 }]} />
-              <View style={[styles.signalBar, { height: 6 }]} />
-              <View style={[styles.signalBar, { height: 9 }]} />
-              <View style={[styles.signalBar, { height: 12 }]} />
-            </View>
-            <View style={styles.battery}>
-              <View style={styles.batteryFill} />
-            </View>
-          </View>
-        </View>
-
         <View style={styles.topNav}>
           <TouchableOpacity
             style={styles.backBtn}
@@ -334,7 +957,7 @@ export default function MyLockerV2Screen() {
             end={{ x: 0.8, y: 1 }}
             style={styles.avatarRing}
           >
-            <Image source={HERO_IMAGE} style={styles.avatarImage} resizeMode="contain" />
+            <Image source={avatarSource} style={styles.avatarImage} resizeMode="contain" />
             <View style={styles.levelBadge}>
               <View style={styles.levelDot} />
               <Text style={styles.levelBadgeText}>LVL 12 · 3,420 XP</Text>
@@ -401,39 +1024,128 @@ export default function MyLockerV2Screen() {
             <StoreRow items={STORE_EMOTES} />
           </View>
         ) : activeTab === "progress" ? (
-          <View style={[styles.panel, styles.panelContent, styles.placeholderWrap]}>
-            <Text style={styles.placeholderTitle}>Progress</Text>
-            <Text style={styles.placeholderSub}>Season progression, XP track, and milestone unlock flow.</Text>
-          </View>
+          <ProgressPanel onPressViewItem={openBwwSheet} bwwOwned={bwwOwned} bwwEquipped={bwwEquipped} />
         ) : (
-          <View style={[styles.panel, styles.panelContent, styles.placeholderWrap]}>
-            <Text style={styles.placeholderTitle}>Customize</Text>
-            <Text style={styles.placeholderSub}>Equip loadouts and taunts from your unlocked inventory.</Text>
-          </View>
+          <CustomizePanel
+            customizeView={customizeView}
+            setCustomizeView={setCustomizeView}
+            accessoryItems={accessoryItems}
+            onPressItem={handleCustomizeItemPress}
+          />
         )}
 
       </ScrollView>
 
-      <View style={[styles.bottomNavWrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-        <View style={styles.bottomNav}>
-          {[
-            { key: "home", label: "Home", icon: "home-filled", active: false },
-            { key: "leagues", label: "Leagues", icon: "flag", active: false },
-            { key: "explore", label: "Explore", icon: "explore", active: false },
-            { key: "avatar", label: "Avatar", icon: "diamond", active: true },
-            { key: "profile", label: "Profile", icon: "person", active: false },
-          ].map((item) => (
-            <View key={item.key} style={styles.navItem}>
-              <MaterialIcons
-                name={item.icon as any}
-                size={20}
-                color={item.active ? COLORS.green : COLORS.muted}
-              />
-              <Text style={[styles.navLabel, item.active && styles.navLabelActive]}>{item.label}</Text>
+      <Modal
+        visible={isBwwSheetVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeBwwSheet}
+      >
+        <View style={styles.bwwSheetOverlay}>
+          <Pressable style={styles.bwwSheetBackdrop} onPress={closeBwwSheet} />
+          <View style={[styles.bwwSheet, { paddingBottom: Math.max(16, insets.bottom + 4) }]}>
+            <View style={styles.bwwSheetHandle} />
+            <View style={styles.bwwPreviewTop}>
+              <View style={styles.bwwRareTopBadge}>
+                <Text style={styles.bwwRareTopBadgeText}>★ RARE</Text>
+              </View>
+              <Image source={PROGRESS_NEXT_IMAGE} style={styles.bwwPreviewImage} resizeMode="contain" />
             </View>
-          ))}
+
+            <View style={styles.bwwContent}>
+              <Text style={styles.bwwTitle}>BWW SKIN</Text>
+              <Text style={styles.bwwType}>Skin · Fantasy Football</Text>
+
+              <View style={styles.bwwTagRow}>
+                <View style={styles.bwwTagGold}>
+                  <Text style={styles.bwwTagGoldText}>★ RARE</Text>
+                </View>
+                <View style={styles.bwwTagSport}>
+                  <Text style={styles.bwwTagSportText}>🏈 NFL FOOTBALL</Text>
+                </View>
+                <View style={styles.bwwTagPass}>
+                  <Text style={styles.bwwTagPassText}>BATTLE PASS</Text>
+                </View>
+              </View>
+
+              <View style={styles.bwwInfoGrid}>
+                <View style={styles.bwwInfoBox}>
+                  <Text style={styles.bwwInfoLabel}>SEASON</Text>
+                  <Text style={styles.bwwInfoValue}>2026 NFL</Text>
+                </View>
+                <View style={styles.bwwInfoBox}>
+                  <Text style={styles.bwwInfoLabel}>SOURCE</Text>
+                  <Text style={styles.bwwInfoValue}>Battle Pass T7</Text>
+                </View>
+                <View style={styles.bwwInfoBox}>
+                  <Text style={styles.bwwInfoLabel}>RARITY</Text>
+                  <Text style={styles.bwwInfoValue}>Rare</Text>
+                </View>
+              </View>
+
+              <Text style={styles.bwwDescription}>
+                Limited to the 2026 NFL Season Battle Pass. Reach Tier 7 to unlock.
+                Once the season ends, this skin is no longer obtainable.
+              </Text>
+
+              <View style={styles.bwwFooterRow}>
+                <TouchableOpacity
+                  style={styles.bwwSecondaryButton}
+                  onPress={closeBwwSheet}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.bwwSecondaryButtonText}>Close</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.bwwPrimaryButton,
+                    !canAffordBww && !bwwOwned && styles.bwwPrimaryButtonDisabled,
+                    bwwEquipped && styles.bwwPrimaryButtonEquipped,
+                  ]}
+                  activeOpacity={0.9}
+                  onPress={handleBwwPrimaryAction}
+                >
+                  <Text
+                    style={[
+                      styles.bwwPrimaryButtonText,
+                      bwwEquipped && styles.bwwPrimaryButtonTextEquipped,
+                    ]}
+                  >
+                    {bwwEquipped
+                      ? "✓ Equipped"
+                      : bwwOwned
+                        ? "Equip Now"
+                        : canAffordBww
+                          ? `⚡ Unlock Now · ${BWW_SKIN_COST} 💎`
+                          : `Need ${Math.max(0, BWW_SKIN_COST - gemCount)} 💎`}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {bwwError ? <Text style={styles.bwwErrorText}>{bwwError}</Text> : null}
+            </View>
+          </View>
         </View>
-      </View>
+      </Modal>
+
+      {purchaseToast ? (
+        <Animated.View
+          {...toastPanResponder.panHandlers}
+          style={[styles.purchaseToastWrap, { bottom: 84 + Math.max(12, insets.bottom) }]}
+        >
+          <Animated.View
+            style={[
+              styles.purchaseToastPill,
+              { opacity: toastOpacity, transform: [{ translateY: toastTranslateY }] },
+            ]}
+          >
+            <Text style={styles.purchaseToastIcon}>💎</Text>
+            <Text style={styles.purchaseToastText}>{purchaseToast.replace("💎 ", "")}</Text>
+          </Animated.View>
+        </Animated.View>
+      ) : null}
       </View>
     </SafeAreaView>
   );
@@ -907,6 +1619,517 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
+  xpCard: {
+    backgroundColor: COLORS.bg2,
+    borderWidth: 1,
+    borderColor: COLORS.border2,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    marginBottom: 14,
+  },
+  xpTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 12,
+    gap: 12,
+  },
+  xpLabel: {
+    fontSize: 10,
+    color: COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: 1.1,
+    fontWeight: "700",
+    marginBottom: 3,
+  },
+  xpLevel: {
+    color: COLORS.light,
+    fontSize: 24,
+    lineHeight: 24,
+    fontWeight: "800",
+  },
+  xpRight: {
+    alignItems: "flex-end",
+  },
+  xpNumbers: {
+    color: COLORS.green,
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 3,
+  },
+  xpNumbersSub: {
+    color: COLORS.muted2,
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  xpPrestige: {
+    color: COLORS.muted,
+    fontSize: 10,
+    fontWeight: "500",
+  },
+  xpBarTrack: {
+    position: "relative",
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: COLORS.bg3,
+    marginBottom: 7,
+    overflow: "visible",
+  },
+  xpBarFill: {
+    width: "68.4%",
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: COLORS.green,
+  },
+  xpBarMarker: {
+    position: "absolute",
+    left: "68.4%",
+    top: "50%",
+    transform: [{ translateX: -7 }, { translateY: -7 }],
+  },
+  xpMarkerDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2.5,
+    borderColor: COLORS.bg2,
+    backgroundColor: COLORS.green,
+    shadowColor: COLORS.green,
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  xpBarLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  xpBarLabel: {
+    color: COLORS.muted,
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  xpPrestigeLabel: {
+    color: COLORS.purple,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.35,
+  },
+
+  bpCard: {
+    backgroundColor: COLORS.bg2,
+    borderWidth: 1,
+    borderColor: COLORS.border2,
+    borderRadius: 18,
+    padding: 16,
+  },
+  bpHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 10,
+  },
+  bpEyebrow: {
+    fontSize: 10,
+    color: COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: 1.1,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  bpTitle: {
+    color: COLORS.light,
+    fontSize: 22,
+    lineHeight: 22,
+    fontWeight: "800",
+  },
+  bpTierBadge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(127,101,192,0.3)",
+    backgroundColor: "rgba(127,101,192,0.15)",
+    paddingHorizontal: 11,
+    paddingVertical: 4,
+  },
+  bpTierBadgeText: {
+    color: COLORS.purple,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  bpNextRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 14,
+  },
+  bpNextLabel: {
+    fontSize: 12,
+    color: COLORS.muted2,
+  },
+  bpNextXpPill: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(58,178,152,0.2)",
+    backgroundColor: "rgba(58,178,152,0.1)",
+    paddingHorizontal: 9,
+    paddingVertical: 2,
+  },
+  bpNextXpText: {
+    fontSize: 12,
+    color: COLORS.green,
+    fontWeight: "700",
+  },
+  bpTrackWrap: {
+    position: "relative",
+    paddingTop: 4,
+    marginBottom: 16,
+  },
+  bpTrackLine: {
+    position: "absolute",
+    top: 22,
+    left: 18,
+    right: 18,
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: COLORS.border2,
+  },
+  bpTrackFill: {
+    position: "absolute",
+    top: 22,
+    left: 18,
+    width: "35%",
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: COLORS.green,
+  },
+  bpNodes: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  bpNode: {
+    alignItems: "center",
+    gap: 6,
+  },
+  bpNodeRing: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bg3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bpNodeRingDone: {
+    borderColor: COLORS.green,
+    backgroundColor: "rgba(58,178,152,0.12)",
+  },
+  bpNodeRingCurrent: {
+    borderColor: COLORS.purple,
+    backgroundColor: "rgba(127,101,192,0.18)",
+    shadowColor: COLORS.purple,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  bpNodeRingLocked: {
+    opacity: 0.45,
+  },
+  bpNodeEmoji: {
+    fontSize: 17,
+    lineHeight: 17,
+  },
+  bpNodeLabel: {
+    fontSize: 9,
+    textAlign: "center",
+    lineHeight: 12,
+    color: COLORS.muted,
+    fontWeight: "600",
+  },
+  bpNodeLabelDone: {
+    color: COLORS.green,
+  },
+  bpNodeLabelCurrent: {
+    color: COLORS.purple,
+    fontWeight: "700",
+  },
+  bpNextItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(127,101,192,0.25)",
+    backgroundColor: COLORS.bg3,
+  },
+  bpNextIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border2,
+    backgroundColor: COLORS.bg2,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 2,
+  },
+  bpNextIconImage: {
+    width: 40,
+    height: 40,
+  },
+  bpNextInfo: {
+    flex: 1,
+  },
+  bpNextName: {
+    fontSize: 14,
+    color: COLORS.light,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  bpNextSub: {
+    fontSize: 11,
+    color: COLORS.muted2,
+  },
+  bpViewItemPill: {
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    backgroundColor: COLORS.green,
+  },
+  bpViewItemPillOwned: {
+    backgroundColor: "rgba(127,101,192,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(127,101,192,0.32)",
+  },
+  bpViewItemPillEquipped: {
+    backgroundColor: "rgba(58,178,152,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(58,178,152,0.35)",
+  },
+  bpViewItemText: {
+    fontSize: 11,
+    color: "#0e1014",
+    fontWeight: "700",
+  },
+  bpViewItemTextOwned: {
+    color: COLORS.purple,
+  },
+  bpViewItemTextEquipped: {
+    color: COLORS.green,
+  },
+
+  customizeTopBar: {
+    alignItems: "flex-end",
+    marginBottom: 18,
+  },
+  viewToggle: {
+    flexDirection: "row",
+    gap: 4,
+    borderRadius: 8,
+    backgroundColor: COLORS.bg3,
+    padding: 3,
+  },
+  viewToggleButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  viewToggleButtonActive: {
+    backgroundColor: COLORS.bg2,
+  },
+  viewToggleText: {
+    color: COLORS.muted,
+    fontSize: 13,
+    lineHeight: 13,
+    fontWeight: "700",
+  },
+  viewToggleTextActive: {
+    color: COLORS.light,
+  },
+  customizeSection: {
+    marginBottom: 22,
+  },
+  catSectionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  catLabel: {
+    color: COLORS.light,
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+  },
+  catCount: {
+    color: COLORS.muted,
+    fontSize: 11,
+  },
+  catSub: {
+    color: COLORS.muted2,
+    fontSize: 11,
+    marginBottom: 10,
+  },
+  slotCounterPill: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: COLORS.border2,
+    backgroundColor: COLORS.bg3,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  slotCounterText: {
+    color: COLORS.muted2,
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  customizeRowContent: {
+    gap: 10,
+    paddingBottom: 8,
+    paddingRight: 20,
+  },
+  scrollCard: {
+    width: 110,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border2,
+    backgroundColor: COLORS.bg2,
+    overflow: "hidden",
+    position: "relative",
+  },
+  scrollCardEquipped: {
+    borderColor: COLORS.green,
+    shadowColor: COLORS.green,
+    shadowOpacity: 0.2,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  scrollCardSelected: {
+    borderColor: COLORS.purple,
+  },
+  scrollCardBadge: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    zIndex: 2,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  scrollCardBadgeOn: {
+    borderColor: "rgba(58,178,152,0.3)",
+    backgroundColor: "rgba(58,178,152,0.2)",
+  },
+  scrollCardBadgeSel: {
+    borderColor: "rgba(127,101,192,0.3)",
+    backgroundColor: "rgba(127,101,192,0.2)",
+  },
+  scrollCardBadgeOff: {},
+  scrollCardBadgeText: {
+    fontSize: 8,
+    letterSpacing: 0.5,
+    color: COLORS.muted,
+    fontWeight: "700",
+  },
+  scrollCardBadgeTextOn: {
+    color: COLORS.green,
+  },
+  scrollCardBadgeTextSel: {
+    color: COLORS.purple,
+  },
+  scrollCardImageWrap: {
+    width: "100%",
+    height: 90,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scrollCardImage: {
+    width: "100%",
+    height: "100%",
+  },
+  scrollCardBody: {
+    paddingHorizontal: 8,
+    paddingTop: 7,
+    paddingBottom: 9,
+  },
+  scrollCardName: {
+    color: COLORS.light,
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  scrollCardSub2: {
+    color: COLORS.green,
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    marginBottom: 1,
+  },
+  scrollCardSub: {
+    color: COLORS.muted,
+    fontSize: 9,
+  },
+  gridWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  gridCard: {
+    width: "31%",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bg2,
+    overflow: "hidden",
+  },
+  gridCardEquipped: {
+    borderColor: COLORS.green,
+  },
+  gridCardSelected: {
+    borderColor: COLORS.purple,
+  },
+  gridImageWrap: {
+    width: "100%",
+    aspectRatio: 1,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  gridImage: {
+    width: "100%",
+    height: "100%",
+  },
+  gridLabel: {
+    color: COLORS.light,
+    fontSize: 9,
+    lineHeight: 11,
+    fontWeight: "700",
+    paddingHorizontal: 6,
+    paddingTop: 5,
+    paddingBottom: 7,
+  },
+  gridSub: {
+    color: COLORS.muted,
+    fontSize: 8,
+    fontWeight: "500",
+  },
+
   placeholderWrap: {
     minHeight: 360,
     justifyContent: "center",
@@ -925,6 +2148,252 @@ const styles = StyleSheet.create({
     textAlign: "center",
     maxWidth: 260,
     lineHeight: 20,
+  },
+  bwwSheetOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(6,7,10,0.62)",
+  },
+  bwwSheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bwwSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: COLORS.border2,
+    backgroundColor: COLORS.bg2,
+    overflow: "hidden",
+  },
+  bwwSheetHandle: {
+    alignSelf: "center",
+    width: 42,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: COLORS.border2,
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  bwwPreviewTop: {
+    backgroundColor: "#f5f2ec",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    marginHorizontal: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    height: 236,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+    overflow: "hidden",
+  },
+  bwwRareTopBadge: {
+    position: "absolute",
+    top: 14,
+    left: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(245,158,11,0.5)",
+    backgroundColor: "rgba(245,158,11,0.12)",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  bwwRareTopBadgeText: {
+    color: "#f3b14a",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.35,
+  },
+  bwwPreviewImage: {
+    width: "62%",
+    height: "84%",
+  },
+  bwwContent: {
+    backgroundColor: COLORS.bg2,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+  },
+  bwwTitle: {
+    color: COLORS.light,
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: "800",
+    letterSpacing: 0.35,
+  },
+  bwwType: {
+    color: COLORS.muted2,
+    fontSize: 14,
+    fontWeight: "500",
+    marginTop: 2,
+    marginBottom: 14,
+  },
+  bwwTagRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 14,
+  },
+  bwwTagGold: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(245,158,11,0.45)",
+    backgroundColor: "rgba(245,158,11,0.12)",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  bwwTagGoldText: {
+    color: "#f3b14a",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  bwwTagSport: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(58,178,152,0.45)",
+    backgroundColor: "rgba(58,178,152,0.15)",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  bwwTagSportText: {
+    color: COLORS.green,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  bwwTagPass: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(127,101,192,0.42)",
+    backgroundColor: "rgba(127,101,192,0.18)",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  bwwTagPassText: {
+    color: COLORS.purple,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  bwwInfoGrid: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 14,
+  },
+  bwwInfoBox: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border2,
+    backgroundColor: COLORS.bg3,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  bwwInfoLabel: {
+    color: COLORS.muted,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.55,
+    marginBottom: 5,
+  },
+  bwwInfoValue: {
+    color: COLORS.light,
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: "700",
+  },
+  bwwDescription: {
+    color: COLORS.muted2,
+    fontSize: 14,
+    lineHeight: 22,
+    marginBottom: 18,
+  },
+  bwwErrorText: {
+    color: "#fb7185",
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 10,
+  },
+  bwwFooterRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 2,
+  },
+  bwwPrimaryButton: {
+    flex: 1.35,
+    borderRadius: 18,
+    backgroundColor: "#8d73df",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 54,
+    paddingHorizontal: 8,
+  },
+  bwwPrimaryButtonDisabled: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderWidth: 1,
+    borderColor: COLORS.border2,
+  },
+  bwwPrimaryButtonEquipped: {
+    backgroundColor: "rgba(58,178,152,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(58,178,152,0.38)",
+  },
+  bwwPrimaryButtonText: {
+    color: COLORS.light,
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+  },
+  bwwPrimaryButtonTextEquipped: {
+    color: COLORS.green,
+  },
+  bwwSecondaryButton: {
+    flex: 1,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: COLORS.border2,
+    backgroundColor: COLORS.bg3,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 54,
+  },
+  bwwSecondaryButtonText: {
+    color: COLORS.light,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  purchaseToastWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 50,
+  },
+  purchaseToastPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 999,
+    backgroundColor: "#69c8ae",
+    minWidth: 286,
+    maxWidth: 340,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.24)",
+    shadowColor: "#66d4bc",
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 5 },
+  },
+  purchaseToastIcon: {
+    fontSize: 18,
+    lineHeight: 18,
+  },
+  purchaseToastText: {
+    color: "#0c1722",
+    fontSize: 16,
+    fontWeight: "900",
+    letterSpacing: 0.1,
   },
 
   bottomNavWrap: {

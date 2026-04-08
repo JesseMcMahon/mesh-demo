@@ -1,3 +1,6 @@
+import { MaterialIcons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
   Image,
@@ -7,12 +10,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { MaterialIcons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const HERO_IMAGE = require("../../assets/demo-assets/home-hero-character.png");
+const MESH_LOGO = require("../../assets/images/meshLogo.png");
 
 type FlowCard = {
   id: string;
@@ -35,41 +36,23 @@ const FLOWS: FlowCard[] = [
     tags: ["Identity", "Store"],
   },
   {
-    id: "xp",
-    title: "XP & Gamification Loop",
-    description: "Every action earns. Level up, unlock milestones, earn gems.",
-    route: "/(investor-demo)/gems-xp",
-    icon: "bolt",
-    tone: "green",
-    tags: ["XP", "Gems", "Battle Pass"],
-  },
-  {
-    id: "matchup",
-    title: "Live Matchup & Squad Vote",
-    description: "Your squad votes the lineup. Taunts fly. Points hit different.",
-    route: "/(investor-demo)/lineup-demo",
-    icon: "sports-football",
-    tone: "amber",
-    tags: ["Live", "Social"],
-  },
-  {
-    id: "squad",
-    title: "Squad Home",
-    description: "Core league loop — cleaner, faster, and more social.",
-    route: "/(investor-demo)/locker-room",
+    id: "league-play",
+    title: "League Play",
+    description: "Squad Home, Matchups, and league loop in one unified module.",
+    route: "/(investor-demo)/league-play",
     icon: "groups",
-    tone: "blue",
-    tags: ["Core", "Roster"],
+    tone: "green",
+    tags: ["Home", "Matchup", "Social"],
   },
-  {
-    id: "economy",
-    title: "Economy & Battle Pass",
-    description: "Earn gems through play. Spend on cosmetics. Seasonal unlocks.",
-    route: "/(investor-demo)/live-economy",
-    icon: "diamond",
-    tone: "red",
-    tags: ["Economy", "Seasonal"],
-  },
+  // {
+  //   id: "economy",
+  //   title: "Economy & Battle Pass",
+  //   description: "Earn gems through play. Spend on cosmetics. Seasonal unlocks.",
+  //   route: "/(investor-demo)/live-economy",
+  //   icon: "diamond",
+  //   tone: "red",
+  //   tags: ["Economy", "Seasonal"],
+  // },
 ];
 
 function toneColors(tone: FlowCard["tone"]) {
@@ -145,9 +128,14 @@ function FlowItem({ flow }: { flow: FlowCard }) {
           {flow.tags.map((tag) => (
             <View
               key={`${flow.id}-${tag}`}
-              style={[styles.flowTag, { backgroundColor: colors.tagBackground }]}
+              style={[
+                styles.flowTag,
+                { backgroundColor: colors.tagBackground },
+              ]}
             >
-              <Text style={[styles.flowTagText, { color: colors.tagText }]}>{tag}</Text>
+              <Text style={[styles.flowTagText, { color: colors.tagText }]}>
+                {tag}
+              </Text>
             </View>
           ))}
         </View>
@@ -162,30 +150,17 @@ export default function InvestorDemoHomeV2Screen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <View style={styles.container}>
-        <View style={styles.statusBarRow}>
-          <Text style={styles.statusTime}>9:41</Text>
-          <View style={styles.statusRight}>
-            <View style={styles.signalBars}>
-              <View style={[styles.signalBar, { height: 4 }]} />
-              <View style={[styles.signalBar, { height: 6 }]} />
-              <View style={[styles.signalBar, { height: 9 }]} />
-              <View style={[styles.signalBar, { height: 12 }]} />
-            </View>
-            <MaterialIcons name="wifi" size={14} color="#F0F0F0" />
-            <View style={styles.battery}>
-              <View style={styles.batteryFill} />
-              <View style={styles.batteryCap} />
-            </View>
-          </View>
-        </View>
-
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.headerRow}>
-            <Text style={styles.meshLogo}>MESH</Text>
+            <Image
+              source={MESH_LOGO}
+              style={styles.meshLogoImage}
+              resizeMode="contain"
+            />
             <View style={styles.demoBadge}>
               <Text style={styles.demoBadgeText}>Demo Mode</Text>
             </View>
@@ -193,7 +168,11 @@ export default function InvestorDemoHomeV2Screen() {
 
           <View style={styles.avatarSection}>
             <View style={styles.avatarRing}>
-              <Image source={HERO_IMAGE} style={styles.avatarImage} resizeMode="contain" />
+              <Image
+                source={HERO_IMAGE}
+                style={styles.avatarImage}
+                resizeMode="contain"
+              />
             </View>
             <View style={styles.levelBadge}>
               <View style={styles.levelDot} />
@@ -227,29 +206,6 @@ export default function InvestorDemoHomeV2Screen() {
             </Text>
           </View>
         </ScrollView>
-
-        <View style={styles.bottomNav}>
-          <View style={styles.bottomNavItem}>
-            <MaterialIcons name="home" size={20} color="#3AB298" />
-            <Text style={[styles.bottomNavText, { color: "#3AB298" }]}>Home</Text>
-          </View>
-          <View style={styles.bottomNavItem}>
-            <MaterialIcons name="flag" size={20} color="#6B7280" />
-            <Text style={styles.bottomNavText}>Leagues</Text>
-          </View>
-          <View style={styles.bottomNavItem}>
-            <MaterialIcons name="explore" size={20} color="#6B7280" />
-            <Text style={styles.bottomNavText}>Explore</Text>
-          </View>
-          <View style={styles.bottomNavItem}>
-            <MaterialIcons name="diamond" size={20} color="#6B7280" />
-            <Text style={styles.bottomNavText}>Avatar</Text>
-          </View>
-          <View style={styles.bottomNavItem}>
-            <MaterialIcons name="person" size={20} color="#6B7280" />
-            <Text style={styles.bottomNavText}>Profile</Text>
-          </View>
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -337,6 +293,10 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 1.3,
     color: "#5DD8BE",
+  },
+  meshLogoImage: {
+    width: 104,
+    height: 40,
   },
   demoBadge: {
     borderWidth: 1,

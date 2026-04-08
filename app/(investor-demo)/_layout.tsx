@@ -20,6 +20,7 @@ export default function InvestorDemoLayout() {
       <Stack.Screen name="battle-pass" />
       <Stack.Screen name="gems-xp" />
       <Stack.Screen name="taunts" />
+      <Stack.Screen name="squad-recap" />
     </Stack>
   );
 }

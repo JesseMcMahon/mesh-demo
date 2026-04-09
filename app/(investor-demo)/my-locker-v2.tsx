@@ -691,7 +691,14 @@ function StoreRow({
 
               <View style={styles.storeCardFooter}>
                 <View style={[styles.storeRarityDot, { backgroundColor: rarity }]} />
-                <Text style={[styles.storeRarityLabel, { color: rarity }]}>{item.rarity}</Text>
+                <Text
+                  style={[styles.storeRarityLabel, { color: rarity }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
+                  {item.rarity}
+                </Text>
                 <View style={styles.storePricePill}>
                   <Text style={styles.storePriceText}>💎 {item.price}</Text>
                 </View>
@@ -1650,6 +1657,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
+    flexWrap: "nowrap",
   },
   storeRarityDot: {
     width: 6,
@@ -1658,15 +1666,19 @@ const styles = StyleSheet.create({
   },
   storeRarityLabel: {
     flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
     fontSize: 9,
     fontWeight: "700",
+    lineHeight: 10,
+    includeFontPadding: false,
   },
   storePricePill: {
     borderRadius: 999,
     borderWidth: 1,
     borderColor: COLORS.border2,
     backgroundColor: COLORS.bg3,
-    paddingHorizontal: 7,
+    paddingHorizontal: 6,
     paddingVertical: 2,
   },
   storePriceText: {

@@ -444,6 +444,40 @@ const VOTE_MEMBERS: Array<{
   { id: "benchboss", name: "BenchBoss", avatar: PRESENCE_BENCH },
 ];
 
+const SQUAD_CHALLENGES = [
+  {
+    id: "chipotle-vote-streak",
+    brand: "Chipotle",
+    title: "Squad Vote Streak",
+    description:
+      "Everyone votes at least once each week for a full month.",
+    progress: 75,
+    progressLabel: "3 / 4 weeks complete",
+    reward: "Group reward: Free Chipotle drop",
+    accent: "teal" as const,
+  },
+  {
+    id: "monthly-points",
+    brand: "MESH Weekly",
+    title: "Score 500+ This Month",
+    description: "Hit 500 squad points in this monthly challenge window.",
+    progress: 62,
+    progressLabel: "310 / 500 points",
+    reward: "Group reward: Everyone gets a new emote",
+    accent: "purple" as const,
+  },
+  {
+    id: "nike-top-accuracy",
+    brand: "Nike",
+    title: "Top-2 Accuracy Finish",
+    description: "Finish this week with top-2 lineup vote accuracy.",
+    progress: 87,
+    progressLabel: "87% · currently 2nd",
+    reward: "Group reward: Avatar accessory unlock",
+    accent: "green" as const,
+  },
+];
+
 function HomeTabContent() {
   const router = useRouter();
   const [activePlayerEmote, setActivePlayerEmote] = useState<string | null>(
@@ -592,23 +626,54 @@ function HomeTabContent() {
         </View>
       </TouchableOpacity>
 
-      <View style={styles.standingCard}>
-        <View style={styles.standingHeader}>
-          <Text style={styles.standingRank}>2nd</Text>
-          <View style={styles.standingBody}>
-            <Text style={styles.standingTitle}>League Standing</Text>
-            <Text style={styles.standingSub}>
-              Top 4 make playoffs · 4 weeks left
-            </Text>
+      <View style={styles.challengeHubCard}>
+        <View style={styles.challengeHubHeader}>
+          <Text style={styles.challengeHubTitle}>Squad Challenges</Text>
+          <Text style={styles.challengeHubSub}>Earn together · unlock together</Text>
+        </View>
+
+        {SQUAD_CHALLENGES.map((challenge) => (
+          <View key={challenge.id} style={styles.challengeRow}>
+            <View style={styles.challengeRowTop}>
+              <Text style={styles.challengeTitle}>{challenge.title}</Text>
+              <View
+                style={[
+                  styles.challengeBrandPill,
+                  challenge.accent === "teal" && styles.challengeBrandPillTeal,
+                  challenge.accent === "purple" && styles.challengeBrandPillPurple,
+                  challenge.accent === "green" && styles.challengeBrandPillGreen,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.challengeBrandText,
+                    challenge.accent === "teal" && styles.challengeBrandTextTeal,
+                    challenge.accent === "purple" && styles.challengeBrandTextPurple,
+                    challenge.accent === "green" && styles.challengeBrandTextGreen,
+                  ]}
+                >
+                  {challenge.brand}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.challengeDescription}>{challenge.description}</Text>
+            <View style={styles.challengeTrack}>
+              <View
+                style={[
+                  styles.challengeFill,
+                  challenge.accent === "teal" && styles.challengeFillTeal,
+                  challenge.accent === "purple" && styles.challengeFillPurple,
+                  challenge.accent === "green" && styles.challengeFillGreen,
+                  { width: `${challenge.progress}%` },
+                ]}
+              />
+            </View>
+            <View style={styles.challengeFooter}>
+              <Text style={styles.challengeProgressLabel}>{challenge.progressLabel}</Text>
+              <Text style={styles.challengeReward}>{challenge.reward}</Text>
+            </View>
           </View>
-        </View>
-        <View style={styles.standingBarTrack}>
-          <View style={styles.standingBarFill} />
-        </View>
-        <View style={styles.standingFooter}>
-          <Text style={styles.standingFooterLeft}>4th place boundary</Text>
-          <Text style={styles.standingFooterRight}>Playoffs locked ✓</Text>
-        </View>
+        ))}
       </View>
     </>
   );
@@ -2354,51 +2419,117 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  standingCard: {
+  challengeHubCard: {
     marginHorizontal: 20,
     marginTop: 12,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
     backgroundColor: "#13161c",
-    padding: 14,
-  },
-  standingHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+    padding: 12,
     gap: 10,
-    marginBottom: 10,
   },
-  standingRank: {
-    color: "#3ab298",
-    fontSize: 44,
-    fontWeight: "800",
-    lineHeight: 44,
+  challengeHubHeader: {
+    marginBottom: 2,
   },
-  standingBody: { flex: 1 },
-  standingTitle: {
+  challengeHubTitle: {
     color: "#f0f0f0",
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: "800",
     lineHeight: 24,
   },
-  standingSub: { color: "#9ca3af", fontSize: 17, marginTop: 2, lineHeight: 22 },
-  standingBarTrack: {
-    height: 6,
+  challengeHubSub: {
+    marginTop: 2,
+    color: "#9ca3af",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  challengeRow: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+    backgroundColor: "#171b24",
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  challengeRowTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 3,
+  },
+  challengeTitle: {
+    flex: 1,
+    color: "#f0f0f0",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  challengeBrandPill: {
     borderRadius: 999,
-    backgroundColor: "#1a1e27",
-    overflow: "hidden",
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  challengeBrandPillTeal: {
+    borderColor: "rgba(58,178,152,0.4)",
+    backgroundColor: "rgba(58,178,152,0.12)",
+  },
+  challengeBrandPillPurple: {
+    borderColor: "rgba(127,101,192,0.4)",
+    backgroundColor: "rgba(127,101,192,0.14)",
+  },
+  challengeBrandPillGreen: {
+    borderColor: "rgba(141,255,138,0.35)",
+    backgroundColor: "rgba(141,255,138,0.12)",
+  },
+  challengeBrandText: {
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  challengeBrandTextTeal: { color: "#7fe9d6" },
+  challengeBrandTextPurple: { color: "#cfbfff" },
+  challengeBrandTextGreen: { color: "#9aff75" },
+  challengeDescription: {
+    color: "#94a3b8",
+    fontSize: 11,
+    lineHeight: 15,
     marginBottom: 7,
   },
-  standingBarFill: {
-    width: "74%",
+  challengeTrack: {
+    height: 7,
+    borderRadius: 999,
+    overflow: "hidden",
+    backgroundColor: "#242b39",
+    marginBottom: 6,
+  },
+  challengeFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: "#7f65c0",
   },
-  standingFooter: { flexDirection: "row", justifyContent: "space-between" },
-  standingFooterLeft: { color: "#6b7280", fontSize: 14, fontWeight: "600" },
-  standingFooterRight: { color: "#3ab298", fontSize: 14, fontWeight: "700" },
+  challengeFillTeal: { backgroundColor: "#3ab298" },
+  challengeFillPurple: { backgroundColor: "#7f65c0" },
+  challengeFillGreen: { backgroundColor: "#8dff8a" },
+  challengeFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  challengeProgressLabel: {
+    color: "#a6b4cb",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  challengeReward: {
+    color: "#7fe9d6",
+    fontSize: 10,
+    fontWeight: "700",
+    textAlign: "right",
+    flex: 1,
+  },
 
   matchupHeroV2: {
     marginHorizontal: 14,
